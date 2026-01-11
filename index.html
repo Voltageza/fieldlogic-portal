@@ -1244,12 +1244,20 @@
         console.error('Supabase config not found. Please create config.js');
         return false;
       }
-      if (typeof window.supabase === 'undefined') {
+      // Check for Supabase library - it may be loaded in different ways
+      var sbLib = window.supabase || window.Supabase;
+      if (!sbLib) {
         console.error('Supabase library not loaded');
         return false;
       }
       try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Try different ways to access createClient
+        var createClient = sbLib.createClient || (sbLib.default && sbLib.default.createClient);
+        if (!createClient) {
+          console.error('createClient not found in Supabase library. Available:', Object.keys(sbLib));
+          return false;
+        }
+        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase initialized successfully');
         return true;
       } catch (e) {
