@@ -40,7 +40,7 @@
     function hideModal(id) { document.getElementById(id).classList.remove('visible'); }
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
 
   <style>
@@ -1244,8 +1244,13 @@
         console.error('Supabase config not found. Please create config.js');
         return false;
       }
+      if (typeof window.supabase === 'undefined') {
+        console.error('Supabase library not loaded');
+        return false;
+      }
       try {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase initialized successfully');
         return true;
       } catch (e) {
         console.error('Supabase init error:', e);
