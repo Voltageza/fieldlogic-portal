@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FieldLogic - Industrial IoT Platform</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="description" content="FieldLogic - Industrial Pump Monitoring and Control Platform">
+  <meta name="theme-color" content="#00d4ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FieldLogic">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0a0e14;
+      --bg-secondary: #111821;
+      --bg-card: #151c28;
+      --border-color: #1e2a3a;
+      --text-primary: #e4e8ef;
+      --text-secondary: #6b7a8f;
+      --text-muted: #3d4a5c;
+      --accent-cyan: #00d4ff;
+      --accent-blue: #0088aa;
+      --status-running: #00ff88;
+      --status-stopped: #6b7a8f;
+      --status-fault: #ff4757;
+      --status-warning: #ffa502;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image:
+        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 30px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--bg-primary);
+      box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .logo-text {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .logo-text span { color: var(--accent-cyan); }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--accent-cyan);
+      background: rgba(0, 212, 255, 0.1);
+    }
+
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-email {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .btn {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: var(--bg-primary);
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #cc3344, var(--status-fault));
+      color: white;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #00aa66, var(--status-running));
+      color: var(--bg-primary);
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Page sections - hidden by default */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Landing Page */
+    .landing-hero {
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .landing-hero .logo-icon {
+      width: 100px;
+      height: 100px;
+      font-size: 40px;
+      margin: 0 auto 30px;
+    }
+
+    .landing-hero h1 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 56px;
+      margin-bottom: 16px;
+    }
+
+    .landing-hero .tagline {
+      color: var(--text-secondary);
+      font-size: 18px;
+      margin-bottom: 40px;
+    }
+
+    .landing-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 80px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .feature-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: var(--accent-cyan);
+    }
+
+    .feature-card p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Auth Forms */
+    .auth-container {
+      max-width: 420px;
+      margin: 60px auto;
+    }
+
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 40px;
+    }
+
+    .auth-card h2 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 24px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .auth-subtitle {
+      color: var(--text-secondary);
+      font-size: 14px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .auth-card .btn {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .auth-footer a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+    }
+
+    .auth-footer a:hover {
+      text-decoration: underline;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .alert-error {
+      background: rgba(255, 71, 87, 0.15);
+      border: 1px solid var(--status-fault);
+      color: var(--status-fault);
+    }
+
+    .alert-success {
+      background: rgba(0, 255, 136, 0.15);
+      border: 1px solid var(--status-running);
+      color: var(--status-running);
+    }
+
+    /* Dashboard */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .dashboard-header h1 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 28px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    /* Devices List */
+    .devices-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-header h2 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .devices-list {
+      padding: 0;
+    }
+
+    .device-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto;
+      gap: 20px;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+
+    .device-item:last-child {
+      border-bottom: none;
+    }
+
+    .device-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .device-status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--status-stopped);
+    }
+
+    .device-status-dot.online {
+      background: var(--status-running);
+      box-shadow: 0 0 10px var(--status-running);
+    }
+
+    .device-status-dot.fault {
+      background: var(--status-fault);
+      box-shadow: 0 0 10px var(--status-fault);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .device-info h3 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .device-info p {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .device-state {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .device-state.running {
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--status-running);
+    }
+
+    .device-state.stopped {
+      background: rgba(107, 122, 143, 0.15);
+      color: var(--status-stopped);
+    }
+
+    .device-state.fault {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--status-fault);
+    }
+
+    .device-state.offline {
+      background: rgba(61, 74, 92, 0.15);
+      color: var(--text-muted);
+    }
+
+    .device-current {
+      text-align: right;
+    }
+
+    .device-current .value {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .device-current .unit {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state h3 {
+      font-family: 'Chakra Petch', sans-serif;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .empty-state p {
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 450px;
+      width: 90%;
+    }
+
+    .modal h2 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .modal p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .modal-buttons .btn {
+      flex: 1;
+    }
+
+    /* Device Detail Page */
+    .device-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 30px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .back-link:hover {
+      color: var(--accent-cyan);
+    }
+
+    .device-title h1 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .device-title p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .connection-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .connection-badge .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--status-fault);
+    }
+
+    .connection-badge .dot.connected {
+      background: var(--status-running);
+      box-shadow: 0 0 10px var(--status-running);
+    }
+
+    /* Current readings grid */
+    .readings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .reading-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .reading-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .reading-value {
+      font-size: 42px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .reading-unit {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* State display */
+    .state-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .state-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 50px;
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+    }
+
+    .state-indicator.running {
+      border-color: var(--status-running);
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+    }
+
+    .state-indicator.fault {
+      border-color: var(--status-fault);
+      box-shadow: 0 0 30px rgba(255, 71, 87, 0.3);
+    }
+
+    .state-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+    }
+
+    .state-icon.running {
+      background: var(--status-running);
+      box-shadow: 0 0 15px var(--status-running);
+    }
+
+    .state-icon.stopped {
+      background: var(--status-stopped);
+    }
+
+    .state-icon.fault {
+      background: var(--status-fault);
+      box-shadow: 0 0 15px var(--status-fault);
+    }
+
+    .state-text {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 3px;
+    }
+
+    .state-text.running { color: var(--status-running); }
+    .state-text.stopped { color: var(--status-stopped); }
+    .state-text.fault { color: var(--status-fault); }
+
+    /* Controls */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .control-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .control-card h3 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .control-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-buttons .btn {
+      width: 100%;
+      padding: 14px;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+    }
+
+    .info-item .label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .info-item .value {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.online {
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--status-running);
+    }
+
+    .status-badge.offline {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--status-fault);
+    }
+
+    .status-badge.active {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .status-badge.inactive {
+      background: rgba(107, 122, 143, 0.15);
+      color: var(--text-secondary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .landing-hero h1 {
+        font-size: 36px;
+      }
+
+      .device-item {
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+      }
+
+      .device-state,
+      .device-current,
+      .device-item .btn {
+        grid-column: 2;
+      }
+
+      .nav-links {
+        display: none;
+      }
+    }
+
+    /* Loading spinner */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Landing Page -->
+  <div id="page-landing" class="page active">
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </div>
+        <nav class="nav-links">
+          <a href="#" class="nav-link" onclick="showPage('login')">Login</a>
+          <a href="#" class="btn btn-primary" onclick="showPage('register')">Get Started</a>
+        </nav>
+      </header>
+
+      <div class="landing-hero">
+        <div class="logo-icon">FL</div>
+        <h1>Field<span style="color: var(--accent-cyan)">Logic</span></h1>
+        <p class="tagline">Industrial Pump Monitoring and Control Platform</p>
+        <div class="landing-buttons">
+          <button class="btn btn-primary" onclick="showPage('register')">Create Account</button>
+          <button class="btn btn-secondary" onclick="showPage('login')">Sign In</button>
+        </div>
+      </div>
+
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">&#9889;</div>
+          <h3>Real-Time Monitoring</h3>
+          <p>Monitor your pump controllers in real-time with live current readings and status updates.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <h3>Secure Cloud</h3>
+          <p>Your devices connect securely via encrypted MQTT. Access from anywhere, anytime.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128241;</div>
+          <h3>Mobile Ready</h3>
+          <p>Install as an app on your phone. Get instant access to your devices on the go.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Page -->
+  <div id="page-login" class="page">
+    <div class="container">
+      <header class="header">
+        <a href="#" onclick="showPage('landing')" class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </a>
+      </header>
+
+      <div class="auth-container">
+        <div class="auth-card">
+          <h2>Welcome Back</h2>
+          <p class="auth-subtitle">Sign in to access your devices</p>
+
+          <div id="login-error" class="alert alert-error" style="display: none;"></div>
+
+          <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" class="form-input" id="login-email" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" class="form-input" id="login-password" placeholder="Your password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="login-btn">Sign In</button>
+          </form>
+
+          <p class="auth-footer">
+            Don't have an account? <a href="#" onclick="showPage('register')">Create one</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Page -->
+  <div id="page-register" class="page">
+    <div class="container">
+      <header class="header">
+        <a href="#" onclick="showPage('landing')" class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </a>
+      </header>
+
+      <div class="auth-container">
+        <div class="auth-card">
+          <h2>Create Account</h2>
+          <p class="auth-subtitle">Start monitoring your devices today</p>
+
+          <div id="register-error" class="alert alert-error" style="display: none;"></div>
+          <div id="register-success" class="alert alert-success" style="display: none;"></div>
+
+          <form id="register-form" onsubmit="handleRegister(event)">
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" class="form-input" id="register-name" placeholder="John Smith" required>
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" class="form-input" id="register-email" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" class="form-input" id="register-password" placeholder="Minimum 6 characters" minlength="6" required>
+            </div>
+            <div class="form-group">
+              <label>Confirm Password</label>
+              <input type="password" class="form-input" id="register-password2" placeholder="Confirm your password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="register-btn">Create Account</button>
+          </form>
+
+          <p class="auth-footer">
+            Already have an account? <a href="#" onclick="showPage('login')">Sign in</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Page -->
+  <div id="page-dashboard" class="page">
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </div>
+        <div class="user-menu">
+          <span class="user-email" id="user-email"></span>
+          <button class="btn btn-secondary btn-small" onclick="handleLogout()">Logout</button>
+        </div>
+      </header>
+
+      <div class="dashboard-header">
+        <h1>My Devices</h1>
+        <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Devices</div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Online</div>
+          <div class="stat-value" id="stat-online">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Running</div>
+          <div class="stat-value" id="stat-running">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Faults</div>
+          <div class="stat-value" id="stat-faults">0</div>
+        </div>
+      </div>
+
+      <div class="devices-section">
+        <div class="section-header">
+          <h2>Registered Devices</h2>
+        </div>
+        <div id="devices-list" class="devices-list">
+          <div class="loading">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Device Detail Page -->
+  <div id="page-device" class="page">
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </div>
+        <div class="user-menu">
+          <span class="user-email" id="device-user-email"></span>
+          <button class="btn btn-secondary btn-small" onclick="handleLogout()">Logout</button>
+        </div>
+      </header>
+
+      <a href="#" class="back-link" onclick="showPage('dashboard')">&#8592; Back to Devices</a>
+
+      <div class="device-detail-header">
+        <div class="device-title">
+          <h1 id="device-name">Device</h1>
+          <p id="device-id-display">ID: ---</p>
+        </div>
+        <div class="connection-badge">
+          <div class="dot" id="device-connection-dot"></div>
+          <span id="device-connection-text">Connecting...</span>
+        </div>
+      </div>
+
+      <div class="state-card">
+        <div class="state-indicator" id="device-state-indicator">
+          <div class="state-icon stopped" id="device-state-icon"></div>
+          <div class="state-text stopped" id="device-state-text">---</div>
+        </div>
+        <p style="margin-top: 16px; font-size: 12px; color: var(--text-muted);" id="device-last-seen">Waiting for data...</p>
+      </div>
+
+      <div class="readings-grid">
+        <div class="reading-card">
+          <div class="reading-label">Phase A Current</div>
+          <div class="reading-value" id="device-current-a">--</div>
+          <div class="reading-unit">Amps</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Phase B Current</div>
+          <div class="reading-value" id="device-current-b">--</div>
+          <div class="reading-unit">Amps</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Phase C Current</div>
+          <div class="reading-value" id="device-current-c">--</div>
+          <div class="reading-unit">Amps</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Uptime</div>
+          <div class="reading-value" id="device-uptime" style="font-size: 28px;">--:--:--</div>
+          <div class="reading-unit">HH:MM:SS</div>
+        </div>
+      </div>
+
+      <div class="controls-grid">
+        <div class="control-card">
+          <h3>Controls</h3>
+          <div class="control-buttons">
+            <button class="btn btn-success" id="device-btn-start" onclick="sendDeviceCommand('START')">Start Pump</button>
+            <button class="btn btn-danger" id="device-btn-stop" onclick="sendDeviceCommand('STOP')">Stop Pump</button>
+            <button class="btn btn-secondary" id="device-btn-reset" onclick="sendDeviceCommand('RESET')">Reset Fault</button>
+          </div>
+        </div>
+        <div class="control-card">
+          <h3>System Info</h3>
+          <div class="info-list">
+            <div class="info-item">
+              <span class="label">Sensor</span>
+              <span class="status-badge offline" id="device-sensor-status">OFFLINE</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Command</span>
+              <span class="status-badge inactive" id="device-cmd-status">INACTIVE</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Mode</span>
+              <span class="status-badge inactive" id="device-mode-status">---</span>
+            </div>
+          </div>
+        </div>
+        <div class="control-card">
+          <h3>Device Actions</h3>
+          <div class="control-buttons">
+            <button class="btn btn-secondary" onclick="editDeviceName()">Rename Device</button>
+            <button class="btn btn-danger" onclick="confirmRemoveDevice()">Remove Device</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Device Modal -->
+  <div class="modal-overlay" id="add-device-modal">
+    <div class="modal">
+      <h2>Add New Device</h2>
+      <p>Enter the Device ID found on your FieldLink controller or in the serial output.</p>
+
+      <div id="add-device-error" class="alert alert-error" style="display: none;"></div>
+
+      <form onsubmit="handleAddDevice(event)">
+        <div class="form-group">
+          <label>Device ID</label>
+          <input type="text" class="form-input" id="add-device-id" placeholder="e.g., FL-A1B2C3" style="text-transform: uppercase;" required>
+        </div>
+        <div class="form-group">
+          <label>Device Name (Optional)</label>
+          <input type="text" class="form-input" id="add-device-name" placeholder="e.g., Borehole Pump 1">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="hideModal('add-device-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Device</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Remove Device Confirmation Modal -->
+  <div class="modal-overlay" id="remove-device-modal">
+    <div class="modal">
+      <h2>Remove Device</h2>
+      <p>Are you sure you want to remove this device from your account? You can add it again later.</p>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" onclick="hideModal('remove-device-modal')">Cancel</button>
+        <button class="btn btn-danger" onclick="handleRemoveDevice()">Remove Device</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Device Modal -->
+  <div class="modal-overlay" id="rename-device-modal">
+    <div class="modal">
+      <h2>Rename Device</h2>
+      <p>Give your device a friendly name for easy identification.</p>
+      <form onsubmit="handleRenameDevice(event)">
+        <div class="form-group">
+          <label>Device Name</label>
+          <input type="text" class="form-input" id="rename-device-name" placeholder="e.g., Borehole Pump 1" required>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="hideModal('rename-device-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // ============================================
+    // SUPABASE INITIALIZATION
+    // ============================================
+    let supabase = null;
+    let currentUser = null;
+    let devices = [];
+    let mqttClient = null;
+    let currentDeviceId = null;
+    let deviceLastData = {};
+
+    function initSupabase() {
+      if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') {
+        console.error('Supabase config not found. Please create config.js');
+        return false;
+      }
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return true;
+    }
+
+    // ============================================
+    // PAGE NAVIGATION
+    // ============================================
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+
+      if (pageId === 'dashboard') {
+        loadDevices();
+        connectMQTT();
+      } else if (pageId !== 'device') {
+        disconnectMQTT();
+      }
+    }
+
+    function showModal(modalId) {
+      document.getElementById(modalId).classList.add('visible');
+    }
+
+    function hideModal(modalId) {
+      document.getElementById(modalId).classList.remove('visible');
+    }
+
+    // ============================================
+    // AUTHENTICATION
+    // ============================================
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const btn = document.getElementById('login-btn');
+      const errorEl = document.getElementById('login-error');
+
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      errorEl.style.display = 'none';
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        currentUser = data.user;
+        document.getElementById('user-email').textContent = currentUser.email;
+        document.getElementById('device-user-email').textContent = currentUser.email;
+        showPage('dashboard');
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('register-name').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+      const password2 = document.getElementById('register-password2').value;
+      const btn = document.getElementById('register-btn');
+      const errorEl = document.getElementById('register-error');
+      const successEl = document.getElementById('register-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (password !== password2) {
+        errorEl.textContent = 'Passwords do not match';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: name }
+          }
+        });
+        if (error) throw error;
+
+        successEl.textContent = 'Account created! Please check your email to verify your account.';
+        successEl.style.display = 'block';
+        document.getElementById('register-form').reset();
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    }
+
+    async function handleLogout() {
+      await supabase.auth.signOut();
+      currentUser = null;
+      devices = [];
+      disconnectMQTT();
+      showPage('landing');
+    }
+
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        document.getElementById('user-email').textContent = currentUser.email;
+        document.getElementById('device-user-email').textContent = currentUser.email;
+        showPage('dashboard');
+      }
+    }
+
+    // ============================================
+    // DEVICES
+    // ============================================
+    async function loadDevices() {
+      const listEl = document.getElementById('devices-list');
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      try {
+        const { data, error } = await supabase
+          .from('devices')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        devices = data || [];
+        renderDevicesList();
+        updateStats();
+      } catch (error) {
+        console.error('Error loading devices:', error);
+        listEl.innerHTML = '<div class="empty-state"><h3>Error loading devices</h3><p>' + error.message + '</p></div>';
+      }
+    }
+
+    function renderDevicesList() {
+      const listEl = document.getElementById('devices-list');
+
+      if (devices.length === 0) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <h3>No Devices Yet</h3>
+            <p>Add your first FieldLink device to start monitoring.</p>
+            <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = devices.map(device => {
+        const data = deviceLastData[device.device_id] || {};
+        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        const state = isOnline ? (data.state || 'STOPPED') : 'OFFLINE';
+        const stateClass = state.toLowerCase();
+        const currentAvg = isOnline && data.Ia !== undefined
+          ? ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1)
+          : '--';
+
+        return `
+          <div class="device-item">
+            <div class="device-status-dot ${isOnline ? (state === 'FAULT' ? 'fault' : 'online') : ''}"></div>
+            <div class="device-info">
+              <h3>${device.name || device.device_id}</h3>
+              <p>${device.device_id}</p>
+            </div>
+            <div class="device-state ${stateClass}">${state}</div>
+            <div class="device-current">
+              <span class="value">${currentAvg}</span>
+              <span class="unit">Avg Amps</span>
+            </div>
+            <button class="btn btn-secondary btn-small" onclick="viewDevice('${device.device_id}')">View</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateStats() {
+      document.getElementById('stat-total').textContent = devices.length;
+
+      let online = 0, running = 0, faults = 0;
+      devices.forEach(device => {
+        const data = deviceLastData[device.device_id] || {};
+        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        if (isOnline) {
+          online++;
+          if (data.state === 'RUNNING') running++;
+          if (data.state === 'FAULT') faults++;
+        }
+      });
+
+      document.getElementById('stat-online').textContent = online;
+      document.getElementById('stat-running').textContent = running;
+      document.getElementById('stat-faults').textContent = faults;
+    }
+
+    function showAddDeviceModal() {
+      document.getElementById('add-device-id').value = '';
+      document.getElementById('add-device-name').value = '';
+      document.getElementById('add-device-error').style.display = 'none';
+      showModal('add-device-modal');
+    }
+
+    async function handleAddDevice(e) {
+      e.preventDefault();
+      const deviceId = document.getElementById('add-device-id').value.trim().toUpperCase();
+      const deviceName = document.getElementById('add-device-name').value.trim();
+      const errorEl = document.getElementById('add-device-error');
+
+      errorEl.style.display = 'none';
+
+      try {
+        // Check if device already registered to this user
+        const existing = devices.find(d => d.device_id === deviceId);
+        if (existing) {
+          throw new Error('This device is already registered to your account');
+        }
+
+        const { error } = await supabase
+          .from('devices')
+          .insert({
+            user_id: currentUser.id,
+            device_id: deviceId,
+            name: deviceName || null
+          });
+
+        if (error) throw error;
+
+        hideModal('add-device-modal');
+        loadDevices();
+
+        // Subscribe to new device
+        if (mqttClient && mqttClient.connected) {
+          mqttClient.subscribe('fieldlink/' + deviceId + '/telemetry');
+        }
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    function viewDevice(deviceId) {
+      currentDeviceId = deviceId;
+      const device = devices.find(d => d.device_id === deviceId);
+
+      document.getElementById('device-name').textContent = device.name || deviceId;
+      document.getElementById('device-id-display').textContent = 'ID: ' + deviceId;
+      document.getElementById('rename-device-name').value = device.name || '';
+
+      // Reset UI
+      updateDeviceUI({});
+
+      showPage('device');
+
+      // Subscribe specifically to this device if not already
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.subscribe('fieldlink/' + deviceId + '/telemetry');
+      }
+    }
+
+    function updateDeviceUI(data) {
+      const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+
+      // Connection status
+      const dot = document.getElementById('device-connection-dot');
+      const text = document.getElementById('device-connection-text');
+      if (isOnline) {
+        dot.classList.add('connected');
+        text.textContent = 'Connected';
+      } else {
+        dot.classList.remove('connected');
+        text.textContent = mqttClient && mqttClient.connected ? 'Waiting for data...' : 'Connecting...';
+      }
+
+      // State
+      const state = data.state || 'STOPPED';
+      const stateClass = state.toLowerCase();
+      document.getElementById('device-state-indicator').className = 'state-indicator ' + stateClass;
+      document.getElementById('device-state-icon').className = 'state-icon ' + stateClass;
+      document.getElementById('device-state-text').className = 'state-text ' + stateClass;
+      document.getElementById('device-state-text').textContent = isOnline ? state : '---';
+
+      // Currents
+      document.getElementById('device-current-a').textContent = data.Ia !== undefined ? data.Ia.toFixed(1) : '--';
+      document.getElementById('device-current-b').textContent = data.Ib !== undefined ? data.Ib.toFixed(1) : '--';
+      document.getElementById('device-current-c').textContent = data.Ic !== undefined ? data.Ic.toFixed(1) : '--';
+
+      // Uptime
+      if (data.uptime !== undefined) {
+        const h = Math.floor(data.uptime / 3600);
+        const m = Math.floor((data.uptime % 3600) / 60);
+        const s = data.uptime % 60;
+        document.getElementById('device-uptime').textContent =
+          h.toString().padStart(2, '0') + ':' +
+          m.toString().padStart(2, '0') + ':' +
+          s.toString().padStart(2, '0');
+      } else {
+        document.getElementById('device-uptime').textContent = '--:--:--';
+      }
+
+      // Status badges
+      const sensorEl = document.getElementById('device-sensor-status');
+      sensorEl.textContent = data.sensor ? 'ONLINE' : 'OFFLINE';
+      sensorEl.className = 'status-badge ' + (data.sensor ? 'online' : 'offline');
+
+      const cmdEl = document.getElementById('device-cmd-status');
+      cmdEl.textContent = data.cmd ? 'ACTIVE' : 'INACTIVE';
+      cmdEl.className = 'status-badge ' + (data.cmd ? 'active' : 'inactive');
+
+      const modeEl = document.getElementById('device-mode-status');
+      if (data.mode) {
+        modeEl.textContent = data.mode;
+        modeEl.className = 'status-badge ' + (data.mode === 'REMOTE' ? 'active' : 'inactive');
+      }
+
+      // Last seen
+      if (data.lastSeen) {
+        const secondsAgo = Math.floor((Date.now() - data.lastSeen) / 1000);
+        const lastSeenEl = document.getElementById('device-last-seen');
+        if (secondsAgo > 10) {
+          lastSeenEl.textContent = 'Last data: ' + secondsAgo + 's ago';
+          lastSeenEl.style.color = 'var(--status-fault)';
+        } else {
+          lastSeenEl.textContent = 'Live data';
+          lastSeenEl.style.color = 'var(--status-running)';
+        }
+      }
+
+      // Button states
+      document.getElementById('device-btn-start').disabled = state === 'FAULT' || !isOnline;
+      document.getElementById('device-btn-reset').disabled = state !== 'FAULT' || !isOnline;
+    }
+
+    function sendDeviceCommand(cmd) {
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, cmd);
+        console.log('Sent command:', topic, cmd);
+      }
+    }
+
+    function editDeviceName() {
+      const device = devices.find(d => d.device_id === currentDeviceId);
+      document.getElementById('rename-device-name').value = device.name || '';
+      showModal('rename-device-modal');
+    }
+
+    async function handleRenameDevice(e) {
+      e.preventDefault();
+      const newName = document.getElementById('rename-device-name').value.trim();
+
+      try {
+        const { error } = await supabase
+          .from('devices')
+          .update({ name: newName })
+          .eq('device_id', currentDeviceId)
+          .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        // Update local data
+        const device = devices.find(d => d.device_id === currentDeviceId);
+        if (device) device.name = newName;
+
+        document.getElementById('device-name').textContent = newName || currentDeviceId;
+        hideModal('rename-device-modal');
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function confirmRemoveDevice() {
+      showModal('remove-device-modal');
+    }
+
+    async function handleRemoveDevice() {
+      try {
+        const { error } = await supabase
+          .from('devices')
+          .delete()
+          .eq('device_id', currentDeviceId)
+          .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        hideModal('remove-device-modal');
+        showPage('dashboard');
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // ============================================
+    // MQTT
+    // ============================================
+    function connectMQTT() {
+      if (mqttClient && mqttClient.connected) return;
+
+      console.log('Connecting to MQTT...');
+      mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+        username: MQTT_USERNAME,
+        password: MQTT_PASSWORD,
+        clientId: 'fieldlogic_' + currentUser.id.substring(0, 8) + '_' + Math.random().toString(16).substr(2, 8),
+        reconnectPeriod: 5000
+      });
+
+      mqttClient.on('connect', function() {
+        console.log('MQTT connected');
+        // Subscribe to all user's devices
+        devices.forEach(device => {
+          mqttClient.subscribe('fieldlink/' + device.device_id + '/telemetry');
+        });
+      });
+
+      mqttClient.on('message', function(topic, message) {
+        try {
+          const parts = topic.split('/');
+          const deviceId = parts[1];
+          const data = JSON.parse(message.toString());
+          data.lastSeen = Date.now();
+
+          deviceLastData[deviceId] = data;
+
+          // Update dashboard list
+          renderDevicesList();
+          updateStats();
+
+          // Update device detail page if viewing this device
+          if (currentDeviceId === deviceId) {
+            updateDeviceUI(data);
+          }
+        } catch (e) {
+          console.error('MQTT message error:', e);
+        }
+      });
+
+      mqttClient.on('error', function(err) {
+        console.error('MQTT error:', err);
+      });
+    }
+
+    function disconnectMQTT() {
+      if (mqttClient) {
+        mqttClient.end();
+        mqttClient = null;
+      }
+    }
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!initSupabase()) {
+        alert('Configuration error. Please check config.js');
+        return;
+      }
+      checkAuth();
+
+      // Periodic stats update
+      setInterval(function() {
+        if (document.getElementById('page-dashboard').classList.contains('active')) {
+          renderDevicesList();
+          updateStats();
+        }
+        if (document.getElementById('page-device').classList.contains('active') && currentDeviceId) {
+          updateDeviceUI(deviceLastData[currentDeviceId] || {});
+        }
+      }, 5000);
+    });
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(function(reg) { console.log('SW registered'); })
+        .catch(function(err) { console.log('SW error:', err); });
+    }
+  </script>
+</body>
+</html>
