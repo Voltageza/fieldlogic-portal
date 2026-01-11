@@ -1693,11 +1693,23 @@
     // INITIALIZATION
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-      if (!initSupabase()) {
-        alert('Configuration error. Please check config.js');
-        return;
+      // Try to initialize Supabase, retry if library not loaded yet
+      var retries = 0;
+      function tryInit() {
+        if (initSupabase()) {
+          checkAuth();
+          return;
+        }
+        retries++;
+        if (retries < 5) {
+          console.log('Supabase not ready, retrying in 500ms...');
+          setTimeout(tryInit, 500);
+        } else {
+          console.error('Failed to initialize after 5 retries');
+          // Still allow page navigation even if Supabase fails
+        }
       }
-      checkAuth();
+      tryInit();
 
       // Periodic stats update
       setInterval(function() {
