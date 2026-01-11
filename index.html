@@ -1205,32 +1205,17 @@
   <script src="config.js"></script>
   <script>
     // ============================================
-    // SUPABASE INITIALIZATION
-    // ============================================
-    let supabase = null;
-    let currentUser = null;
-    let devices = [];
-    let mqttClient = null;
-    let currentDeviceId = null;
-    let deviceLastData = {};
-
-    function initSupabase() {
-      if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') {
-        console.error('Supabase config not found. Please create config.js');
-        return false;
-      }
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      return true;
-    }
-
-    // ============================================
-    // PAGE NAVIGATION
+    // PAGE NAVIGATION (defined first to ensure it works)
     // ============================================
     function showPage(pageId) {
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.getElementById('page-' + pageId).classList.add('active');
+      console.log('showPage called:', pageId);
+      document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+      var targetPage = document.getElementById('page-' + pageId);
+      if (targetPage) {
+        targetPage.classList.add('active');
+      }
 
-      if (pageId === 'dashboard') {
+      if (pageId === 'dashboard' && supabase && currentUser) {
         loadDevices();
         connectMQTT();
       } else if (pageId !== 'device') {
@@ -1245,6 +1230,31 @@
     function hideModal(modalId) {
       document.getElementById(modalId).classList.remove('visible');
     }
+
+    // ============================================
+    // SUPABASE INITIALIZATION
+    // ============================================
+    var supabase = null;
+    var currentUser = null;
+    var devices = [];
+    var mqttClient = null;
+    var currentDeviceId = null;
+    var deviceLastData = {};
+
+    function initSupabase() {
+      if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') {
+        console.error('Supabase config not found. Please create config.js');
+        return false;
+      }
+      try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        return true;
+      } catch (e) {
+        console.error('Supabase init error:', e);
+        return false;
+      }
+    }
+
 
     // ============================================
     // AUTHENTICATION
