@@ -908,8 +908,7 @@
           <div class="logo-text">Field<span>Logic</span></div>
         </div>
         <nav class="nav-links">
-          <a href="#" class="nav-link" onclick="showPage('login')">Login</a>
-          <a href="#" class="btn btn-primary" onclick="showPage('register')">Get Started</a>
+          <a href="#" class="btn btn-primary" onclick="showPage('login')">Sign In</a>
         </nav>
       </header>
 
@@ -918,8 +917,7 @@
         <h1>Field<span style="color: var(--accent-cyan)">Logic</span></h1>
         <p class="tagline">Industrial Pump Monitoring and Control Platform</p>
         <div class="landing-buttons">
-          <button class="btn btn-primary" onclick="showPage('register')">Create Account</button>
-          <button class="btn btn-secondary" onclick="showPage('login')">Sign In</button>
+          <button class="btn btn-primary" onclick="showPage('login')">Sign In</button>
         </div>
       </div>
 
@@ -973,7 +971,7 @@
           </form>
 
           <p class="auth-footer">
-            Don't have an account? <a href="#" onclick="showPage('register')">Create one</a>
+            <a href="#" onclick="handleForgotPassword()">Forgot your password?</a>
           </p>
         </div>
       </div>
@@ -1270,6 +1268,23 @@
     // ============================================
     // AUTHENTICATION
     // ============================================
+    async function handleForgotPassword() {
+      var email = document.getElementById('login-email').value;
+      if (!email) {
+        alert('Please enter your email address first');
+        return;
+      }
+      try {
+        var result = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + window.location.pathname
+        });
+        if (result.error) throw result.error;
+        alert('Password reset email sent! Check your inbox.');
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
     async function handleLogin(e) {
       e.preventDefault();
       const email = document.getElementById('login-email').value;
