@@ -1223,6 +1223,15 @@
   </div>
 
   <script src="supabase.min.js"></script>
+  <script>
+    console.log('After supabase.min.js loaded:');
+    console.log('window.supabase:', window.supabase);
+    console.log('self.supabase:', self.supabase);
+    console.log('typeof supabase:', typeof supabase);
+    if (typeof supabase !== 'undefined') {
+      console.log('supabase keys:', Object.keys(supabase));
+    }
+  </script>
   <script src="mqtt.min.js"></script>
   <script src="config.js"></script>
   <script>
