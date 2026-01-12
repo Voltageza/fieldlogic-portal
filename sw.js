@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fieldlogic-v2';
+const CACHE_NAME = 'fieldlogic-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -7,7 +7,7 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png',
   'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
-  'https://unpkg.com/@supabase/supabase-js@2',
+  'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js',
   'https://unpkg.com/mqtt/dist/mqtt.min.js'
 ];
 
