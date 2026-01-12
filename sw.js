@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fieldlogic-v3';
+const CACHE_NAME = 'fieldlogic-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -6,9 +6,9 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap',
-  'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js',
-  'https://unpkg.com/mqtt/dist/mqtt.min.js'
+  './supabase.min.js',
+  './mqtt.min.js',
+  'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap'
 ];
 
 // Install - cache assets
