@@ -1244,19 +1244,24 @@
       }
       // Check for Supabase library - it may be loaded in different ways
       var sbLib = window.supabase || window.Supabase;
+      console.log('Supabase library object:', sbLib);
+      console.log('Type:', typeof sbLib);
+      if (sbLib) {
+        console.log('Keys:', Object.keys(sbLib));
+      }
       if (!sbLib) {
         console.error('Supabase library not loaded');
         return false;
       }
       try {
         // Try different ways to access createClient
-        var createClient = sbLib.createClient || (sbLib.default && sbLib.default.createClient);
+        var createClient = sbLib.createClient;
         if (!createClient) {
-          console.error('createClient not found in Supabase library. Available:', Object.keys(sbLib));
+          console.error('createClient not found. Available keys:', Object.keys(sbLib));
           return false;
         }
         supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase initialized successfully');
+        console.log('Supabase client created:', supabase);
         return true;
       } catch (e) {
         console.error('Supabase init error:', e);
