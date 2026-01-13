@@ -1224,13 +1224,9 @@
 
   <script src="supabase.min.js"></script>
   <script>
-    console.log('After supabase.min.js loaded:');
-    console.log('window.supabase:', window.supabase);
-    console.log('self.supabase:', self.supabase);
-    console.log('typeof supabase:', typeof supabase);
-    if (typeof supabase !== 'undefined') {
-      console.log('supabase keys:', Object.keys(supabase));
-    }
+    // Store reference immediately before anything can overwrite it
+    window._supabaseLib = window.supabase;
+    console.log('Stored supabase library:', window._supabaseLib);
   </script>
   <script src="mqtt.min.js"></script>
   <script src="config.js"></script>
@@ -1250,13 +1246,9 @@
         console.error('Supabase config not found. Please create config.js');
         return false;
       }
-      // Check for Supabase library - it may be loaded in different ways
-      var sbLib = window.supabase || window.Supabase;
+      // Use the stored reference from when library first loaded
+      var sbLib = window._supabaseLib || window.supabase;
       console.log('Supabase library object:', sbLib);
-      console.log('Type:', typeof sbLib);
-      if (sbLib) {
-        console.log('Keys:', Object.keys(sbLib));
-      }
       if (!sbLib) {
         console.error('Supabase library not loaded');
         return false;
