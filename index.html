@@ -1238,7 +1238,7 @@
     // ============================================
     // SUPABASE INITIALIZATION
     // ============================================
-    var supabase = null;
+    var supabaseClient = null;
     var currentUser = null;
     var devices = [];
     var mqttClient = null;
@@ -1268,8 +1268,8 @@
           console.error('createClient not found. Available keys:', Object.keys(sbLib));
           return false;
         }
-        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client created:', supabase);
+        supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client created:', supabaseClient);
         return true;
       } catch (e) {
         console.error('Supabase init error:', e);
@@ -1288,7 +1288,7 @@
         return;
       }
       try {
-        var result = await supabase.auth.resetPasswordForEmail(email, {
+        var result = await supabaseClient.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin + window.location.pathname
         });
         if (result.error) throw result.error;
@@ -1310,7 +1310,7 @@
       errorEl.style.display = 'none';
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseClientClient.auth.signInWithPassword({ email, password });
         if (error) throw error;
 
         currentUser = data.user;
@@ -1349,7 +1349,7 @@
       btn.textContent = 'Creating account...';
 
       try {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabaseClientClient.auth.signUp({
           email,
           password,
           options: {
@@ -1371,7 +1371,7 @@
     }
 
     async function handleLogout() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       currentUser = null;
       devices = [];
       disconnectMQTT();
@@ -1379,7 +1379,7 @@
     }
 
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
         currentUser = session.user;
         document.getElementById('user-email').textContent = currentUser.email;
@@ -1396,7 +1396,7 @@
       listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('devices')
           .select('*')
           .eq('user_id', currentUser.id)
@@ -1495,7 +1495,7 @@
           throw new Error('This device is already registered to your account');
         }
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('devices')
           .insert({
             user_id: currentUser.id,
@@ -1629,7 +1629,7 @@
       const newName = document.getElementById('rename-device-name').value.trim();
 
       try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('devices')
           .update({ name: newName })
           .eq('device_id', currentDeviceId)
@@ -1654,7 +1654,7 @@
 
     async function handleRemoveDevice() {
       try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('devices')
           .delete()
           .eq('device_id', currentDeviceId)
