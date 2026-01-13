@@ -1223,18 +1223,23 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
-  <script>
-    // Store reference immediately before anything can overwrite it
-    window._supabaseLib = window.supabase;
-    console.log('Stored supabase library:', window._supabaseLib);
-  </script>
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
   <script src="config.js"></script>
   <script>
     // ============================================
-    // SUPABASE INITIALIZATION
+    // CREATE SUPABASE CLIENT IMMEDIATELY
     // ============================================
     var supabaseClient = null;
+    try {
+      if (window.supabase && window.supabase.createClient) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase client created successfully:', supabaseClient);
+      } else {
+        console.error('Supabase library not available. window.supabase:', window.supabase);
+      }
+    } catch(e) {
+      console.error('Error creating Supabase client:', e);
+    }
     var currentUser = null;
     var devices = [];
     var mqttClient = null;
@@ -1242,31 +1247,13 @@
     var deviceLastData = {};
 
     function initSupabase() {
-      if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') {
-        console.error('Supabase config not found. Please create config.js');
-        return false;
-      }
-      // Use the stored reference from when library first loaded
-      var sbLib = window._supabaseLib || window.supabase;
-      console.log('Supabase library object:', sbLib);
-      if (!sbLib) {
-        console.error('Supabase library not loaded');
-        return false;
-      }
-      try {
-        // Try different ways to access createClient
-        var createClient = sbLib.createClient;
-        if (!createClient) {
-          console.error('createClient not found. Available keys:', Object.keys(sbLib));
-          return false;
-        }
-        supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client created:', supabaseClient);
+      // Client should already be created at top of script
+      if (supabaseClient) {
+        console.log('Supabase client ready');
         return true;
-      } catch (e) {
-        console.error('Supabase init error:', e);
-        return false;
       }
+      console.error('Supabase client not initialized');
+      return false;
     }
 
 
@@ -1721,23 +1708,13 @@
     // INITIALIZATION
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-      // Try to initialize Supabase, retry if library not loaded yet
-      var retries = 0;
-      function tryInit() {
-        if (initSupabase()) {
-          checkAuth();
-          return;
-        }
-        retries++;
-        if (retries < 5) {
-          console.log('Supabase not ready, retrying in 500ms...');
-          setTimeout(tryInit, 500);
-        } else {
-          console.error('Failed to initialize after 5 retries');
-          // Still allow page navigation even if Supabase fails
-        }
+      // Check if Supabase client was created successfully
+      if (supabaseClient) {
+        console.log('Supabase ready, checking auth...');
+        checkAuth();
+      } else {
+        console.error('Supabase client not available');
       }
-      tryInit();
 
       // Periodic stats update
       setInterval(function() {
