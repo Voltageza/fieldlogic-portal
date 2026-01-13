@@ -1310,7 +1310,7 @@
       errorEl.style.display = 'none';
 
       try {
-        const { data, error } = await supabaseClientClient.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) throw error;
 
         currentUser = data.user;
@@ -1349,7 +1349,7 @@
       btn.textContent = 'Creating account...';
 
       try {
-        const { data, error } = await supabaseClientClient.auth.signUp({
+        const { data, error } = await supabaseClient.auth.signUp({
           email,
           password,
           options: {
