@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FieldLogic - Industrial IoT Platform</title>
-  <!-- v10 -->
+  <!-- v11 - Admin functionality -->
 
   <!-- PWA Meta Tags -->
   <meta name="description" content="FieldLogic - Industrial Pump Monitoring and Control Platform">
@@ -873,6 +873,29 @@
       }
     }
 
+    /* Admin styles */
+    .admin-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: linear-gradient(135deg, #ffa502, #ff6348);
+      color: #000;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+    }
+
+    .device-owner {
+      font-size: 11px;
+      color: var(--status-warning);
+      margin-top: 2px;
+    }
+
+    #admin-toggle .btn {
+      margin-right: 8px;
+    }
+
     /* Loading spinner */
     .loading {
       display: flex;
@@ -1037,7 +1060,13 @@
       </header>
 
       <div class="dashboard-header">
-        <h1>My Devices</h1>
+        <div>
+          <h1 id="dashboard-title">My Devices</h1>
+          <div id="admin-toggle" style="display: none; margin-top: 8px;">
+            <button class="btn btn-small" id="btn-my-devices" onclick="setAdminView(false)" style="opacity: 0.5;">My Devices</button>
+            <button class="btn btn-small btn-primary" id="btn-all-devices" onclick="setAdminView(true)">All Devices (Admin)</button>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
       </div>
 
@@ -1242,6 +1271,8 @@
       console.error('Error creating Supabase client:', e);
     }
     var currentUser = null;
+    var isAdmin = false;
+    var showAllDevices = false;
     var devices = [];
     var mqttClient = null;
     var currentDeviceId = null;
@@ -1257,6 +1288,66 @@
       return false;
     }
 
+    // ============================================
+    // ADMIN FUNCTIONALITY
+    // ============================================
+    async function checkIsAdmin() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_profiles')
+          .select('is_admin')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) {
+          console.log('Profile not found, user is not admin');
+          isAdmin = false;
+        } else {
+          isAdmin = data.is_admin === true;
+        }
+
+        // Show/hide admin toggle
+        const adminToggle = document.getElementById('admin-toggle');
+        const userEmailEl = document.getElementById('user-email');
+        if (isAdmin) {
+          adminToggle.style.display = 'block';
+          userEmailEl.innerHTML = currentUser.email + '<span class="admin-badge">Admin</span>';
+        } else {
+          adminToggle.style.display = 'none';
+          userEmailEl.textContent = currentUser.email;
+        }
+
+        console.log('Is admin:', isAdmin);
+      } catch (e) {
+        console.error('Error checking admin status:', e);
+        isAdmin = false;
+      }
+    }
+
+    function setAdminView(showAll) {
+      showAllDevices = showAll;
+
+      // Update button states
+      const btnMy = document.getElementById('btn-my-devices');
+      const btnAll = document.getElementById('btn-all-devices');
+      const title = document.getElementById('dashboard-title');
+
+      if (showAll) {
+        btnMy.classList.remove('btn-primary');
+        btnMy.style.opacity = '0.5';
+        btnAll.classList.add('btn-primary');
+        btnAll.style.opacity = '1';
+        title.textContent = 'All Devices (Admin View)';
+      } else {
+        btnMy.classList.add('btn-primary');
+        btnMy.style.opacity = '1';
+        btnAll.classList.remove('btn-primary');
+        btnAll.style.opacity = '0.5';
+        title.textContent = 'My Devices';
+      }
+
+      loadDevices();
+    }
 
     // ============================================
     // AUTHENTICATION
@@ -1296,6 +1387,7 @@
         currentUser = data.user;
         document.getElementById('user-email').textContent = currentUser.email;
         document.getElementById('device-user-email').textContent = currentUser.email;
+        await checkIsAdmin();
         showPage('dashboard');
       } catch (error) {
         errorEl.textContent = error.message;
@@ -1364,6 +1456,7 @@
         currentUser = session.user;
         document.getElementById('user-email').textContent = currentUser.email;
         document.getElementById('device-user-email').textContent = currentUser.email;
+        await checkIsAdmin();
         showPage('dashboard');
       }
     }
@@ -1376,11 +1469,23 @@
       listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
       try {
-        const { data, error } = await supabaseClient
-          .from('devices')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false });
+        let query;
+        if (isAdmin && showAllDevices) {
+          // Admin view: get all devices with user email
+          query = supabaseClient
+            .from('devices')
+            .select('*, user_profiles(email, full_name)')
+            .order('created_at', { ascending: false });
+        } else {
+          // Normal view: only user's devices
+          query = supabaseClient
+            .from('devices')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -1416,12 +1521,18 @@
           ? ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1)
           : '--';
 
+        // Show owner email in admin view
+        const ownerInfo = (isAdmin && showAllDevices && device.user_profiles)
+          ? `<p class="device-owner">Owner: ${device.user_profiles.email || 'Unknown'}</p>`
+          : '';
+
         return `
           <div class="device-item">
             <div class="device-status-dot ${isOnline ? (state === 'FAULT' ? 'fault' : 'online') : ''}"></div>
             <div class="device-info">
               <h3>${device.name || device.device_id}</h3>
               <p>${device.device_id}</p>
+              ${ownerInfo}
             </div>
             <div class="device-state ${stateClass}">${state}</div>
             <div class="device-current">
