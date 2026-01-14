@@ -1068,6 +1068,7 @@
           <div id="admin-toggle" style="display: none; margin-top: 8px;">
             <button class="btn btn-small" id="btn-my-devices" onclick="setAdminView(false)" style="opacity: 0.5;">My Devices</button>
             <button class="btn btn-small btn-primary" id="btn-all-devices" onclick="setAdminView(true)">All Devices (Admin)</button>
+            <button class="btn btn-small btn-secondary" id="btn-registry" onclick="showRegistryModal()" style="margin-left: 10px;">Device Registry</button>
           </div>
         </div>
         <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
@@ -1233,6 +1234,42 @@
       <div class="modal-buttons">
         <button class="btn btn-secondary" onclick="hideModal('remove-device-modal')">Cancel</button>
         <button class="btn btn-danger" onclick="handleRemoveDevice()">Remove Device</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Device Registry Modal (Admin Only) -->
+  <div class="modal-overlay" id="registry-modal">
+    <div class="modal" style="max-width: 600px;">
+      <h2>Device Registry</h2>
+      <p>Manage approved devices. Only devices in this registry can be added by users.</p>
+
+      <div id="registry-error" class="alert alert-error" style="display: none;"></div>
+      <div id="registry-success" class="alert alert-success" style="display: none;"></div>
+
+      <form onsubmit="handleAddToRegistry(event)" style="margin-bottom: 20px;">
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label>Device ID</label>
+            <input type="text" class="form-input" id="registry-device-id" placeholder="FL-XXXXXX" style="text-transform: uppercase;" required>
+          </div>
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label>Name</label>
+            <input type="text" class="form-input" id="registry-device-name" placeholder="Device name">
+          </div>
+          <button type="submit" class="btn btn-primary" style="height: 44px;">Add</button>
+        </div>
+      </form>
+
+      <div style="border-top: 1px solid #333; padding-top: 15px;">
+        <h3 style="margin: 0 0 10px; font-size: 14px; color: #888;">Registered Devices</h3>
+        <div id="registry-list" style="max-height: 300px; overflow-y: auto;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="modal-buttons" style="margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="hideModal('registry-modal')">Close</button>
       </div>
     </div>
   </div>
@@ -1585,6 +1622,17 @@
       errorEl.style.display = 'none';
 
       try {
+        // Check if device exists in registry
+        const { data: registryDevice, error: registryError } = await supabaseClient
+          .from('device_registry')
+          .select('device_id, name')
+          .eq('device_id', deviceId)
+          .single();
+
+        if (registryError || !registryDevice) {
+          throw new Error('Device not found in registry. Please contact your administrator to register this device.');
+        }
+
         // Check if device already registered to this user
         const existing = devices.find(d => d.device_id === deviceId);
         if (existing) {
@@ -1596,7 +1644,7 @@
           .insert({
             user_id: currentUser.id,
             device_id: deviceId,
-            name: deviceName || null
+            name: deviceName || registryDevice.name || null
           });
 
         if (error) throw error;
@@ -1611,6 +1659,101 @@
       } catch (error) {
         errorEl.textContent = error.message;
         errorEl.style.display = 'block';
+      }
+    }
+
+    // ============================================
+    // DEVICE REGISTRY (Admin)
+    // ============================================
+    async function showRegistryModal() {
+      showModal('registry-modal');
+      await loadRegistry();
+    }
+
+    async function loadRegistry() {
+      const listEl = document.getElementById('registry-list');
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('device_registry')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          listEl.innerHTML = '<p style="color: #666; text-align: center;">No devices in registry</p>';
+          return;
+        }
+
+        listEl.innerHTML = data.map(device => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #0f0f23; border-radius: 6px; margin-bottom: 8px;">
+            <div>
+              <strong style="color: #00d4ff;">${device.device_id}</strong>
+              <span style="color: #888; margin-left: 10px;">${device.name || 'No name'}</span>
+            </div>
+            <button class="btn btn-small btn-danger" onclick="handleRemoveFromRegistry('${device.device_id}')" style="padding: 5px 10px; font-size: 12px;">Remove</button>
+          </div>
+        `).join('');
+      } catch (error) {
+        listEl.innerHTML = '<p style="color: #ff4757;">Error loading registry: ' + error.message + '</p>';
+      }
+    }
+
+    async function handleAddToRegistry(e) {
+      e.preventDefault();
+      const deviceId = document.getElementById('registry-device-id').value.trim().toUpperCase();
+      const deviceName = document.getElementById('registry-device-name').value.trim();
+      const errorEl = document.getElementById('registry-error');
+      const successEl = document.getElementById('registry-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      try {
+        const { error } = await supabaseClient
+          .from('device_registry')
+          .insert({
+            device_id: deviceId,
+            name: deviceName || null,
+            provisioned_by: currentUser.id
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Device ID already exists in registry');
+          }
+          throw error;
+        }
+
+        successEl.textContent = 'Device added to registry';
+        successEl.style.display = 'block';
+        document.getElementById('registry-device-id').value = '';
+        document.getElementById('registry-device-name').value = '';
+        await loadRegistry();
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    async function handleRemoveFromRegistry(deviceId) {
+      if (!confirm('Remove ' + deviceId + ' from registry? Users will no longer be able to register this device.')) {
+        return;
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from('device_registry')
+          .delete()
+          .eq('device_id', deviceId);
+
+        if (error) throw error;
+
+        await loadRegistry();
+      } catch (error) {
+        alert('Error removing device: ' + error.message);
       }
     }
 
