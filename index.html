@@ -526,6 +526,27 @@
       color: var(--text-muted);
     }
 
+    .device-state.decommissioned {
+      background: rgba(255, 165, 0, 0.15);
+      color: #ffa500;
+    }
+
+    .device-item.decommissioned {
+      opacity: 0.6;
+      border-color: #ffa500;
+    }
+
+    .device-status-dot.decommissioned {
+      background: #ffa500;
+    }
+
+    .device-decommissioned-notice {
+      color: #ffa500;
+      font-size: 11px;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
     .device-current {
       text-align: right;
     }
@@ -1556,9 +1577,21 @@
 
       listEl.innerHTML = devices.map(device => {
         const data = deviceLastData[device.device_id] || {};
-        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
-        const state = isOnline ? (data.state || 'STOPPED') : 'OFFLINE';
-        const stateClass = state.toLowerCase();
+        const isDecommissioned = device.decommissioned === true;
+        const isOnline = !isDecommissioned && data.lastSeen && (Date.now() - data.lastSeen < 15000);
+
+        let state, stateClass;
+        if (isDecommissioned) {
+          state = 'DECOMMISSIONED';
+          stateClass = 'decommissioned';
+        } else if (isOnline) {
+          state = data.state || 'STOPPED';
+          stateClass = state.toLowerCase();
+        } else {
+          state = 'OFFLINE';
+          stateClass = 'offline';
+        }
+
         const currentAvg = isOnline && data.Ia !== undefined
           ? ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1)
           : '--';
@@ -1568,20 +1601,26 @@
           ? `<p class="device-owner">Owner: ${device.user_profiles.email || 'Unknown'}</p>`
           : '';
 
+        // Show decommissioned notice
+        const decommNotice = isDecommissioned
+          ? `<p class="device-decommissioned-notice">This device has been decommissioned by administrator</p>`
+          : '';
+
         return `
-          <div class="device-item">
-            <div class="device-status-dot ${isOnline ? (state === 'FAULT' ? 'fault' : 'online') : ''}"></div>
+          <div class="device-item ${isDecommissioned ? 'decommissioned' : ''}">
+            <div class="device-status-dot ${isDecommissioned ? 'decommissioned' : (isOnline ? (state === 'FAULT' ? 'fault' : 'online') : '')}"></div>
             <div class="device-info">
               <h3>${device.name || device.device_id}</h3>
               <p>${device.device_id}</p>
               ${ownerInfo}
+              ${decommNotice}
             </div>
             <div class="device-state ${stateClass}">${state}</div>
             <div class="device-current">
               <span class="value">${currentAvg}</span>
               <span class="unit">Avg Amps</span>
             </div>
-            <button class="btn btn-secondary btn-small" onclick="viewDevice('${device.device_id}')">View</button>
+            <button class="btn btn-secondary btn-small" onclick="viewDevice('${device.device_id}')" ${isDecommissioned ? 'disabled' : ''}>View</button>
           </div>
         `;
       }).join('');
@@ -1739,11 +1778,42 @@
     }
 
     async function handleRemoveFromRegistry(deviceId) {
-      if (!confirm('Remove ' + deviceId + ' from registry? Users will no longer be able to register this device.')) {
-        return;
-      }
-
       try {
+        // Check how many users have this device registered
+        const { data: userDevices, error: countError } = await supabaseClient
+          .from('devices')
+          .select('id, user_id')
+          .eq('device_id', deviceId);
+
+        if (countError) throw countError;
+
+        const userCount = userDevices ? userDevices.length : 0;
+
+        let confirmMsg = 'Remove ' + deviceId + ' from registry?';
+        if (userCount > 0) {
+          confirmMsg = 'WARNING: ' + deviceId + ' is registered by ' + userCount + ' user(s).\n\n' +
+            'Removing will mark their device as DECOMMISSIONED.\n\n' +
+            'Continue?';
+        }
+
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+
+        // Mark all user devices as decommissioned
+        if (userCount > 0) {
+          const { error: decommError } = await supabaseClient
+            .from('devices')
+            .update({
+              decommissioned: true,
+              decommissioned_at: new Date().toISOString()
+            })
+            .eq('device_id', deviceId);
+
+          if (decommError) throw decommError;
+        }
+
+        // Remove from registry
         const { error } = await supabaseClient
           .from('device_registry')
           .delete()
@@ -1752,6 +1822,10 @@
         if (error) throw error;
 
         await loadRegistry();
+
+        if (userCount > 0) {
+          alert('Device decommissioned. ' + userCount + ' user(s) will see their device marked as decommissioned.');
+        }
       } catch (error) {
         alert('Error removing device: ' + error.message);
       }
