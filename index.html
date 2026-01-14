@@ -1449,6 +1449,8 @@
       await supabaseClient.auth.signOut();
       currentUser = null;
       devices = [];
+      isAdmin = false;
+      showAllDevices = false;
       disconnectMQTT();
       showPage('landing');
     }
