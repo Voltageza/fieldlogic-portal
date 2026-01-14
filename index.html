@@ -1748,11 +1748,17 @@
 
     async function handleRemoveDevice() {
       try {
-        const { error } = await supabaseClient
+        let query = supabaseClient
           .from('devices')
           .delete()
-          .eq('device_id', currentDeviceId)
-          .eq('user_id', currentUser.id);
+          .eq('device_id', currentDeviceId);
+
+        // Only filter by user_id if not admin viewing all devices
+        if (!isAdmin || !showAllDevices) {
+          query = query.eq('user_id', currentUser.id);
+        }
+
+        const { error } = await query;
 
         if (error) throw error;
 
