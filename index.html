@@ -1040,7 +1040,7 @@
       width: 36px;
       height: 36px;
       border: none;
-      background: var(--bg-secondary);
+      background: var(--bg-tertiary);
       border-radius: 50%;
       cursor: pointer;
       display: flex;
@@ -1048,10 +1048,11 @@
       justify-content: center;
       transition: all 0.2s ease;
       font-size: 18px;
+      color: var(--text-primary);
     }
 
     .theme-toggle:hover {
-      background: var(--border-light);
+      background: var(--border-color);
       transform: scale(1.05);
     }
 
@@ -1062,15 +1063,20 @@
     .theme-toggle .icon-sun,
     .theme-toggle .icon-moon {
       display: none;
+      line-height: 1;
     }
 
+    /* Light mode: show moon icon (to switch to dark) */
     [data-theme="light"] .theme-toggle .icon-moon,
     :root:not([data-theme]) .theme-toggle .icon-moon {
       display: block;
+      color: #1d1d1f;
     }
 
+    /* Dark mode: show sun icon (to switch to light) */
     [data-theme="dark"] .theme-toggle .icon-sun {
       display: block;
+      color: #ffd60a;
     }
 
     /* ─────────────── LOADING SPINNER ─────────────── */
