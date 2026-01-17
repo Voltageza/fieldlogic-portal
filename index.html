@@ -2495,9 +2495,19 @@
           const parts = topic.split('/');
           const deviceId = parts[1];
           const data = JSON.parse(message.toString());
-          data.lastSeen = Date.now();
 
+          // Get previous state before updating
+          const previousState = deviceLastData[deviceId]?.state;
+          const currentState = data.state;
+
+          data.lastSeen = Date.now();
           deviceLastData[deviceId] = data;
+
+          // FAULT DETECTION: Trigger notification if state changed to FAULT
+          if (currentState === 'FAULT' && previousState !== 'FAULT') {
+            console.log('FAULT detected on device:', deviceId);
+            triggerFaultNotification(deviceId);
+          }
 
           // Update dashboard list
           renderDevicesList();
@@ -2528,6 +2538,34 @@
     // TELEGRAM NOTIFICATIONS
     // ============================================
     var pendingTelegramCode = null;
+    const NOTIFICATION_ENDPOINT = 'https://fast-fox-18.voltageza.deno.net/notify';
+
+    async function triggerFaultNotification(deviceId) {
+      if (!currentUser) return;
+
+      try {
+        const device = devices.find(d => d.device_id === deviceId);
+        const deviceName = device?.name || deviceId;
+
+        console.log('Sending fault notification for:', deviceName);
+
+        const response = await fetch(NOTIFICATION_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: currentUser.id,
+            device_id: deviceId,
+            device_name: deviceName,
+            notification_type: 'fault'
+          })
+        });
+
+        const result = await response.json();
+        console.log('Notification result:', result);
+      } catch (e) {
+        console.error('Error sending notification:', e);
+      }
+    }
 
     async function loadTelegramStatus() {
       try {
