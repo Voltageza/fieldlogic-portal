@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FieldLogic - Industrial IoT Platform</title>
-  <!-- v13 - Light/Dark mode toggle -->
+  <!-- v14 - Telegram notifications -->
 
   <!-- PWA Meta Tags -->
   <meta name="description" content="FieldLogic - Industrial Pump Monitoring and Control Platform">
@@ -64,10 +64,14 @@
       if (target) {
         target.classList.add('active');
       }
-      // Handle dashboard-specific logic after page switch
+      // Handle page-specific logic after page switch
       if (pageId === 'dashboard' && typeof loadDevices === 'function') {
         loadDevices();
         if (typeof connectMQTT === 'function') connectMQTT();
+      } else if (pageId === 'settings' && typeof loadTelegramStatus === 'function') {
+        document.getElementById('settings-user-email').textContent = currentUser ? currentUser.email : '';
+        loadTelegramStatus();
+        loadNotificationHistory();
       } else if (pageId !== 'device' && typeof disconnectMQTT === 'function') {
         disconnectMQTT();
       }
@@ -1035,6 +1039,120 @@
       margin-right: 8px;
     }
 
+    /* ─────────────── SETTINGS PAGE ─────────────── */
+    .settings-card {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .settings-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 28px;
+      display: inline-block;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text-tertiary);
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: var(--success);
+      border-color: var(--success);
+    }
+
+    input:checked + .toggle-slider:before {
+      background-color: white;
+      transform: translateX(22px);
+    }
+
+    /* Device preference item */
+    .device-pref-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+    }
+
+    .device-pref-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .device-pref-info h4 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .device-pref-info p {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Notification history item */
+    .notification-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      border-left: 3px solid var(--danger);
+    }
+
+    .notification-item .notif-content {
+      flex: 1;
+    }
+
+    .notification-item .notif-device {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .notification-item .notif-time {
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
     /* ─────────────── THEME TOGGLE ─────────────── */
     .theme-toggle {
       width: 36px;
@@ -1327,6 +1445,7 @@
             <span class="icon-sun">&#9728;</span>
             <span class="icon-moon">&#9790;</span>
           </button>
+          <button class="btn btn-secondary btn-small" onclick="showPage('settings')" title="Settings">&#9881;</button>
           <button class="btn btn-secondary btn-small" onclick="handleLogout()">Logout</button>
         </div>
       </header>
@@ -1389,6 +1508,7 @@
             <span class="icon-sun">&#9728;</span>
             <span class="icon-moon">&#9790;</span>
           </button>
+          <button class="btn btn-secondary btn-small" onclick="showPage('settings')" title="Settings">&#9881;</button>
           <button class="btn btn-secondary btn-small" onclick="handleLogout()">Logout</button>
         </div>
       </header>
@@ -1469,6 +1589,114 @@
             <button class="btn btn-secondary" onclick="editDeviceName()">Rename Device</button>
             <button class="btn btn-danger" onclick="confirmRemoveDevice()">Remove Device</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Page -->
+  <div id="page-settings" class="page">
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </div>
+        <div class="user-menu">
+          <span class="user-email" id="settings-user-email"></span>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+            <span class="icon-sun">&#9728;</span>
+            <span class="icon-moon">&#9790;</span>
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="handleLogout()">Logout</button>
+        </div>
+      </header>
+
+      <a href="#" class="back-link" onclick="showPage('dashboard')">&#8592; Back to Dashboard</a>
+
+      <h1 style="margin-bottom: 24px; font-size: 28px; font-weight: 700;">Settings</h1>
+
+      <!-- Telegram Link Section -->
+      <div class="settings-card">
+        <h3>Telegram Notifications</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+          Link your Telegram account to receive instant alerts when devices enter fault state.
+        </p>
+
+        <div id="telegram-error" class="alert alert-error" style="display: none;"></div>
+        <div id="telegram-success" class="alert alert-success" style="display: none;"></div>
+
+        <!-- Not Linked State -->
+        <div id="telegram-not-linked">
+          <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+              &#9993;
+            </div>
+            <div>
+              <p style="font-weight: 600;">Not Connected</p>
+              <p style="font-size: 13px; color: var(--text-secondary);">Link your Telegram to receive alerts</p>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="generateTelegramCode()" id="btn-link-telegram">
+            Link Telegram Account
+          </button>
+        </div>
+
+        <!-- Link Code State -->
+        <div id="telegram-link-code" style="display: none;">
+          <div style="background: var(--bg-secondary); border-radius: var(--radius-md); padding: 24px; text-align: center; margin-bottom: 20px;">
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Send this code to our Telegram bot:</p>
+            <p style="font-size: 32px; font-weight: 700; letter-spacing: 4px; font-family: monospace;" id="telegram-code-display">------</p>
+            <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 12px;">Code expires in 10 minutes</p>
+          </div>
+
+          <div style="background: var(--bg-tertiary); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
+            <p style="font-weight: 600; margin-bottom: 8px;">How to link:</p>
+            <ol style="margin-left: 20px; font-size: 14px; color: var(--text-secondary); line-height: 1.8;">
+              <li>Open Telegram and search for <strong>@FieldLogicAlertsBot</strong></li>
+              <li>Start a chat and send: <code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">/start <span id="code-inline">------</span></code></li>
+              <li>You'll receive a confirmation message</li>
+            </ol>
+          </div>
+
+          <div style="display: flex; gap: 12px;">
+            <button class="btn btn-secondary" onclick="cancelTelegramLink()">Cancel</button>
+            <button class="btn btn-primary" onclick="checkTelegramLink()" id="btn-check-link">I've Sent the Code</button>
+          </div>
+        </div>
+
+        <!-- Linked State -->
+        <div id="telegram-linked" style="display: none;">
+          <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
+            <div style="width: 48px; height: 48px; background: rgba(52, 199, 89, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--success);">
+              &#10003;
+            </div>
+            <div>
+              <p style="font-weight: 600; color: var(--success);">Connected</p>
+              <p style="font-size: 13px; color: var(--text-secondary);" id="telegram-username-display">@username</p>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-small" onclick="unlinkTelegram()">Unlink Telegram</button>
+        </div>
+      </div>
+
+      <!-- Device Notification Preferences -->
+      <div class="settings-card" id="notification-prefs-section" style="display: none; margin-top: 24px;">
+        <h3>Device Alerts</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+          Choose which devices send you Telegram alerts when they enter fault state.
+        </p>
+
+        <div id="device-prefs-list">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Notification History -->
+      <div class="settings-card" style="margin-top: 24px;">
+        <h3>Recent Alerts</h3>
+        <div id="notification-history">
+          <p style="color: var(--text-secondary);">No alerts sent yet.</p>
         </div>
       </div>
     </div>
@@ -2293,6 +2521,287 @@
       if (mqttClient) {
         mqttClient.end();
         mqttClient = null;
+      }
+    }
+
+    // ============================================
+    // TELEGRAM NOTIFICATIONS
+    // ============================================
+    var pendingTelegramCode = null;
+
+    async function loadTelegramStatus() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_profiles')
+          .select('telegram_chat_id, telegram_username, telegram_verified')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) throw error;
+
+        if (data.telegram_verified && data.telegram_chat_id) {
+          showTelegramLinked(data.telegram_username || 'Linked');
+          await loadNotificationPreferences();
+        } else {
+          showTelegramNotLinked();
+        }
+      } catch (e) {
+        console.error('Error loading Telegram status:', e);
+        showTelegramNotLinked();
+      }
+    }
+
+    function showTelegramNotLinked() {
+      document.getElementById('telegram-not-linked').style.display = 'block';
+      document.getElementById('telegram-link-code').style.display = 'none';
+      document.getElementById('telegram-linked').style.display = 'none';
+      document.getElementById('notification-prefs-section').style.display = 'none';
+    }
+
+    function showTelegramLinkCode(code) {
+      document.getElementById('telegram-not-linked').style.display = 'none';
+      document.getElementById('telegram-link-code').style.display = 'block';
+      document.getElementById('telegram-linked').style.display = 'none';
+      document.getElementById('telegram-code-display').textContent = code;
+      document.getElementById('code-inline').textContent = code;
+    }
+
+    function showTelegramLinked(username) {
+      document.getElementById('telegram-not-linked').style.display = 'none';
+      document.getElementById('telegram-link-code').style.display = 'none';
+      document.getElementById('telegram-linked').style.display = 'block';
+      document.getElementById('telegram-username-display').textContent = username;
+      document.getElementById('notification-prefs-section').style.display = 'block';
+    }
+
+    function generateRandomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    async function generateTelegramCode() {
+      const btn = document.getElementById('btn-link-telegram');
+      const errorEl = document.getElementById('telegram-error');
+      errorEl.style.display = 'none';
+
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      try {
+        const code = generateRandomCode();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+        // Delete any existing codes for this user
+        await supabaseClient
+          .from('telegram_link_codes')
+          .delete()
+          .eq('user_id', currentUser.id);
+
+        // Insert new code
+        const { error } = await supabaseClient
+          .from('telegram_link_codes')
+          .insert({
+            user_id: currentUser.id,
+            code: code,
+            expires_at: expiresAt,
+            used: false
+          });
+
+        if (error) throw error;
+
+        pendingTelegramCode = code;
+        showTelegramLinkCode(code);
+      } catch (e) {
+        console.error('Error generating code:', e);
+        errorEl.textContent = 'Failed to generate code. Please try again.';
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Link Telegram Account';
+      }
+    }
+
+    function cancelTelegramLink() {
+      pendingTelegramCode = null;
+      showTelegramNotLinked();
+    }
+
+    async function checkTelegramLink() {
+      const btn = document.getElementById('btn-check-link');
+      const errorEl = document.getElementById('telegram-error');
+      const successEl = document.getElementById('telegram-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+
+      try {
+        // Check if user profile has been updated with telegram_chat_id
+        const { data, error } = await supabaseClient
+          .from('user_profiles')
+          .select('telegram_chat_id, telegram_username, telegram_verified')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) throw error;
+
+        if (data.telegram_verified && data.telegram_chat_id) {
+          successEl.textContent = 'Telegram linked successfully!';
+          successEl.style.display = 'block';
+
+          setTimeout(() => {
+            showTelegramLinked(data.telegram_username || 'Linked');
+            loadNotificationPreferences();
+            createDefaultNotificationPreferences();
+          }, 1000);
+        } else {
+          errorEl.textContent = 'Not yet linked. Please send the code to the Telegram bot and try again.';
+          errorEl.style.display = 'block';
+        }
+      } catch (e) {
+        console.error('Error checking link:', e);
+        errorEl.textContent = 'Error checking status. Please try again.';
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "I've Sent the Code";
+      }
+    }
+
+    async function unlinkTelegram() {
+      if (!confirm('Are you sure you want to unlink your Telegram account? You will stop receiving notifications.')) {
+        return;
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from('user_profiles')
+          .update({
+            telegram_chat_id: null,
+            telegram_username: null,
+            telegram_verified: false,
+            telegram_linked_at: null
+          })
+          .eq('id', currentUser.id);
+
+        if (error) throw error;
+
+        showTelegramNotLinked();
+      } catch (e) {
+        console.error('Error unlinking Telegram:', e);
+        alert('Failed to unlink Telegram. Please try again.');
+      }
+    }
+
+    async function createDefaultNotificationPreferences() {
+      try {
+        for (const device of devices) {
+          await supabaseClient
+            .from('notification_preferences')
+            .upsert({
+              user_id: currentUser.id,
+              device_id: device.device_id,
+              telegram_fault_enabled: true
+            }, { onConflict: 'user_id,device_id' });
+        }
+      } catch (e) {
+        console.error('Error creating default preferences:', e);
+      }
+    }
+
+    async function loadNotificationPreferences() {
+      const listEl = document.getElementById('device-prefs-list');
+
+      try {
+        const { data: prefs, error } = await supabaseClient
+          .from('notification_preferences')
+          .select('*')
+          .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        const prefsMap = {};
+        (prefs || []).forEach(p => { prefsMap[p.device_id] = p; });
+
+        if (devices.length === 0) {
+          listEl.innerHTML = '<p style="color: var(--text-secondary);">No devices registered yet. Add a device first.</p>';
+          return;
+        }
+
+        listEl.innerHTML = devices.map(device => {
+          const pref = prefsMap[device.device_id];
+          const isEnabled = pref ? pref.telegram_fault_enabled : true;
+
+          return `
+            <div class="device-pref-item">
+              <div class="device-pref-info">
+                <h4>${device.name || device.device_id}</h4>
+                <p>${device.device_id}</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox"
+                       ${isEnabled ? 'checked' : ''}
+                       onchange="toggleDeviceNotification('${device.device_id}', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Error loading notification preferences:', e);
+        listEl.innerHTML = '<p style="color: var(--danger);">Error loading preferences</p>';
+      }
+    }
+
+    async function toggleDeviceNotification(deviceId, enabled) {
+      try {
+        await supabaseClient
+          .from('notification_preferences')
+          .upsert({
+            user_id: currentUser.id,
+            device_id: deviceId,
+            telegram_fault_enabled: enabled
+          }, { onConflict: 'user_id,device_id' });
+      } catch (e) {
+        console.error('Error updating notification preference:', e);
+        alert('Failed to update notification settings');
+      }
+    }
+
+    async function loadNotificationHistory() {
+      const historyEl = document.getElementById('notification-history');
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('notifications')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          historyEl.innerHTML = '<p style="color: var(--text-secondary);">No alerts sent yet.</p>';
+          return;
+        }
+
+        historyEl.innerHTML = data.map(n => `
+          <div class="notification-item">
+            <div class="notif-content">
+              <div class="notif-device">${n.device_name || n.device_id} - FAULT</div>
+              <div class="notif-time">${new Date(n.created_at).toLocaleString()}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error('Error loading notification history:', e);
       }
     }
 
