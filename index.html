@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FieldLogic - Industrial IoT Platform</title>
-  <!-- v11 - Admin functionality -->
+  <!-- v12 - Apple-inspired UI redesign -->
 
   <!-- PWA Meta Tags -->
   <meta name="description" content="FieldLogic - Industrial Pump Monitoring and Control Platform">
-  <meta name="theme-color" content="#f4f1eb">
+  <meta name="theme-color" content="#f5f5f7">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FieldLogic">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
 
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=SF+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <!-- Basic page navigation that works without external libraries -->
   <script>
@@ -43,41 +43,46 @@
 
   <style>
     /* ═══════════════════════════════════════════════════════════
-       E-PAPER AESTHETIC - FieldLogic Industrial Interface
-       A utilitarian, high-contrast design inspired by technical
-       instruments, scientific documents, and e-ink displays
+       APPLE-INSPIRED AESTHETIC - FieldLogic Industrial Interface
+       Clean, minimal design with subtle depth and refined typography
     ═══════════════════════════════════════════════════════════ */
 
     :root {
-      --paper: #f4f1eb;
-      --paper-dark: #e8e4dc;
-      --ink: #1a1a1a;
-      --ink-light: #4a4a4a;
-      --ink-faint: #8a8a8a;
-      --accent: #c41e3a;
-      --border: #1a1a1a;
-      --border-light: #c0bdb6;
-      --status-online: #1a1a1a;
-      --status-offline: #8a8a8a;
-      --status-fault: #c41e3a;
-      --status-running: #1a1a1a;
-      --status-stopped: #8a8a8a;
-      --status-warning: #8b6914;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f7;
+      --bg-tertiary: #fafafa;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #aeaeb2;
+      --border-color: #d2d2d7;
+      --border-light: #e8e8ed;
+      --accent: #007aff;
+      --accent-hover: #0056b3;
+      --success: #34c759;
+      --warning: #ff9500;
+      --danger: #ff3b30;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'IBM Plex Mono', monospace;
-      background: var(--paper);
-      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       min-height: 100vh;
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1080px;
       margin: 0 auto;
       padding: 24px;
     }
@@ -87,9 +92,13 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 0;
-      border-bottom: 2px solid var(--border);
-      margin-bottom: 32px;
+      padding: 16px 24px;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
     }
 
     .logo {
@@ -101,48 +110,47 @@
     }
 
     .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: var(--ink);
+      width: 36px;
+      height: 36px;
+      background: var(--text-primary);
+      border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: 'Instrument Serif', serif;
-      font-weight: 400;
-      font-size: 18px;
-      color: var(--paper);
-      letter-spacing: -1px;
+      font-weight: 600;
+      font-size: 14px;
+      color: white;
     }
 
     .logo-text {
-      font-family: 'Instrument Serif', serif;
-      font-size: 24px;
-      font-weight: 400;
-      letter-spacing: -0.5px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
     }
 
     .logo-text span {
-      font-style: italic;
+      color: var(--accent);
     }
 
     .nav-links {
       display: flex;
-      gap: 16px;
+      gap: 8px;
       align-items: center;
     }
 
     .nav-link {
-      color: var(--ink);
+      color: var(--text-secondary);
       text-decoration: none;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 8px 0;
-      border-bottom: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
     }
 
     .nav-link:hover {
-      border-bottom-color: var(--ink);
+      color: var(--text-primary);
+      background: var(--bg-secondary);
     }
 
     .user-menu {
@@ -152,91 +160,80 @@
     }
 
     .user-email {
-      font-size: 11px;
-      color: var(--ink-light);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 13px;
+      color: var(--text-secondary);
     }
 
     /* ─────────────── BUTTONS ─────────────── */
     .btn {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
+      font-family: inherit;
+      font-size: 14px;
       font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 12px 24px;
-      border: 2px solid var(--border);
-      background: transparent;
-      color: var(--ink);
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
     }
 
     .btn:hover {
-      background: var(--ink);
-      color: var(--paper);
+      transform: scale(1.02);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
     }
 
     .btn-primary {
-      background: var(--ink);
-      color: var(--paper);
+      background: var(--accent);
+      color: white;
     }
 
     .btn-primary:hover {
-      background: transparent;
-      color: var(--ink);
+      background: var(--accent-hover);
     }
 
     .btn-secondary {
-      background: transparent;
-      border-color: var(--border-light);
-      color: var(--ink-light);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
     }
 
     .btn-secondary:hover {
-      border-color: var(--ink);
-      color: var(--ink);
-      background: transparent;
+      background: var(--border-light);
     }
 
     .btn-danger {
-      border-color: var(--accent);
-      color: var(--accent);
+      background: var(--danger);
+      color: white;
     }
 
     .btn-danger:hover {
-      background: var(--accent);
-      color: var(--paper);
+      background: #e5342b;
     }
 
     .btn-success {
-      border-color: var(--ink);
-      color: var(--ink);
+      background: var(--success);
+      color: white;
     }
 
     .btn-success:hover {
-      background: var(--ink);
-      color: var(--paper);
+      background: #2db84e;
     }
 
     .btn-small {
-      padding: 8px 16px;
-      font-size: 10px;
+      padding: 6px 14px;
+      font-size: 13px;
     }
 
     .btn:disabled {
-      opacity: 0.3;
+      opacity: 0.5;
       cursor: not-allowed;
-    }
-
-    .btn:disabled:hover {
-      background: transparent;
-      color: var(--ink);
+      transform: none;
     }
 
     /* ─────────────── PAGE SECTIONS ─────────────── */
@@ -247,39 +244,41 @@
     .landing-hero {
       text-align: center;
       padding: 80px 20px;
-      border-bottom: 1px solid var(--border-light);
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
     }
 
     .landing-hero .logo-icon {
-      width: 80px;
-      height: 80px;
-      font-size: 32px;
-      margin: 0 auto 32px;
+      width: 72px;
+      height: 72px;
+      font-size: 28px;
+      border-radius: var(--radius-md);
+      margin: 0 auto 24px;
     }
 
     .landing-hero h1 {
-      font-family: 'Instrument Serif', serif;
       font-size: 48px;
-      font-weight: 400;
-      margin-bottom: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
       letter-spacing: -1px;
     }
 
     .landing-hero h1 span {
-      font-style: italic;
+      color: var(--accent);
     }
 
     .landing-hero .tagline {
-      color: var(--ink-light);
-      font-size: 14px;
-      margin-bottom: 40px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      margin-bottom: 32px;
+      font-weight: 400;
     }
 
     .landing-buttons {
       display: flex;
-      gap: 16px;
+      gap: 12px;
       justify-content: center;
       flex-wrap: wrap;
     }
@@ -287,204 +286,195 @@
     .features {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0;
-      margin-top: 0;
-      border-bottom: 1px solid var(--border-light);
+      gap: 16px;
     }
 
     .feature-card {
-      background: transparent;
-      border: none;
-      border-right: 1px solid var(--border-light);
-      padding: 40px 32px;
-      text-align: left;
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
     }
 
-    .feature-card:last-child {
-      border-right: none;
+    .feature-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
     }
 
     .feature-icon {
-      font-size: 24px;
+      font-size: 32px;
       margin-bottom: 16px;
       display: block;
     }
 
     .feature-card h3 {
-      font-family: 'Instrument Serif', serif;
-      font-size: 18px;
-      font-weight: 400;
-      margin-bottom: 12px;
-      color: var(--ink);
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
     }
 
     .feature-card p {
-      color: var(--ink-light);
-      font-size: 12px;
-      line-height: 1.7;
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.6;
     }
 
     /* ─────────────── AUTH FORMS ─────────────── */
     .auth-container {
-      max-width: 380px;
+      max-width: 400px;
       margin: 60px auto;
     }
 
     .auth-card {
-      background: transparent;
-      border: 2px solid var(--border);
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
       padding: 40px;
+      box-shadow: var(--shadow-md);
     }
 
     .auth-card h2 {
-      font-family: 'Instrument Serif', serif;
       font-size: 28px;
-      font-weight: 400;
+      font-weight: 700;
       margin-bottom: 8px;
       text-align: center;
+      letter-spacing: -0.5px;
     }
 
     .auth-subtitle {
-      color: var(--ink-light);
-      font-size: 12px;
+      color: var(--text-secondary);
+      font-size: 15px;
       text-align: center;
       margin-bottom: 32px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
     .form-group {
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .form-group label {
       display: block;
-      font-size: 10px;
-      color: var(--ink-light);
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
     }
 
     .form-input {
       width: 100%;
-      padding: 14px 0;
-      font-size: 14px;
-      font-family: 'IBM Plex Mono', monospace;
-      background: transparent;
-      border: none;
-      border-bottom: 1px solid var(--border-light);
-      color: var(--ink);
-      transition: border-color 0.2s;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-family: inherit;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      transition: all 0.2s ease;
     }
 
     .form-input:focus {
       outline: none;
-      border-bottom-color: var(--ink);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
     }
 
     .form-input::placeholder {
-      color: var(--ink-faint);
+      color: var(--text-tertiary);
     }
 
     .auth-card .btn {
       width: 100%;
-      padding: 16px;
-      margin-top: 16px;
-      justify-content: center;
+      padding: 14px;
+      margin-top: 8px;
+      font-size: 15px;
     }
 
     .auth-footer {
       text-align: center;
-      margin-top: 24px;
-      font-size: 12px;
-      color: var(--ink-light);
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
     }
 
     .auth-footer a {
-      color: var(--ink);
+      color: var(--accent);
       text-decoration: none;
-      border-bottom: 1px solid var(--ink);
+      font-weight: 500;
     }
 
     .auth-footer a:hover {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
+      text-decoration: underline;
     }
 
     .alert {
-      padding: 16px;
-      font-size: 12px;
-      margin-bottom: 24px;
-      border: 1px solid;
+      padding: 14px 16px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      border-radius: var(--radius-sm);
     }
 
     .alert-error {
-      background: transparent;
-      border-color: var(--accent);
-      color: var(--accent);
+      background: rgba(255, 59, 48, 0.1);
+      color: var(--danger);
     }
 
     .alert-success {
-      background: transparent;
-      border-color: var(--ink);
-      color: var(--ink);
+      background: rgba(52, 199, 89, 0.1);
+      color: var(--success);
     }
 
     /* ─────────────── DASHBOARD ─────────────── */
     .dashboard-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 32px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid var(--border-light);
+      align-items: center;
+      margin-bottom: 24px;
     }
 
     .dashboard-header h1 {
-      font-family: 'Instrument Serif', serif;
-      font-size: 32px;
-      font-weight: 400;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
 
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 0;
-      margin-bottom: 32px;
-      border: 2px solid var(--border);
+      gap: 16px;
+      margin-bottom: 24px;
     }
 
     .stat-card {
-      background: transparent;
-      border: none;
-      border-right: 1px solid var(--border-light);
-      padding: 24px;
-    }
-
-    .stat-card:last-child {
-      border-right: none;
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      box-shadow: var(--shadow-sm);
     }
 
     .stat-label {
-      font-size: 9px;
-      color: var(--ink-light);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 0.5px;
       margin-bottom: 8px;
     }
 
     .stat-value {
-      font-family: 'Instrument Serif', serif;
-      font-size: 36px;
-      font-weight: 400;
-      color: var(--ink);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -1px;
     }
 
     /* ─────────────── DEVICES LIST ─────────────── */
     .devices-section {
-      background: transparent;
-      border: 2px solid var(--border);
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
     }
 
     .section-header {
@@ -492,16 +482,15 @@
       justify-content: space-between;
       align-items: center;
       padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      background: var(--paper-dark);
+      border-bottom: 1px solid var(--border-light);
     }
 
     .section-header h2 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
+      font-size: 13px;
       font-weight: 600;
+      color: var(--text-secondary);
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 0.5px;
     }
 
     .devices-list {
@@ -510,12 +499,12 @@
 
     .device-item {
       display: grid;
-      grid-template-columns: 24px 1fr auto auto auto;
-      gap: 24px;
+      grid-template-columns: 12px 1fr auto auto auto;
+      gap: 20px;
       align-items: center;
-      padding: 20px 24px;
+      padding: 16px 24px;
       border-bottom: 1px solid var(--border-light);
-      transition: background 0.1s;
+      transition: background 0.15s ease;
     }
 
     .device-item:last-child {
@@ -523,96 +512,90 @@
     }
 
     .device-item:hover {
-      background: var(--paper-dark);
+      background: var(--bg-tertiary);
     }
 
     .device-status-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--status-offline);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
     }
 
     .device-status-dot.online {
-      background: var(--status-online);
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
     }
 
     .device-status-dot.fault {
-      background: var(--status-fault);
-      animation: blink 1s steps(1) infinite;
+      background: var(--danger);
+      box-shadow: 0 0 8px rgba(255, 59, 48, 0.4);
+      animation: pulse 2s ease infinite;
     }
 
-    @keyframes blink {
+    @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
+      50% { opacity: 0.6; }
     }
 
     .device-info h3 {
-      font-family: 'Instrument Serif', serif;
       font-size: 16px;
-      font-weight: 400;
+      font-weight: 600;
       margin-bottom: 2px;
     }
 
     .device-info p {
-      font-size: 11px;
-      color: var(--ink-light);
-      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
     }
 
     .device-state {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      font-size: 11px;
       font-weight: 500;
       padding: 6px 12px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      border: 1px solid;
+      letter-spacing: 0.5px;
+      border-radius: 20px;
     }
 
     .device-state.running {
-      background: transparent;
-      border-color: var(--ink);
-      color: var(--ink);
+      background: rgba(52, 199, 89, 0.12);
+      color: var(--success);
     }
 
     .device-state.stopped {
-      background: transparent;
-      border-color: var(--ink-faint);
-      color: var(--ink-faint);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
     }
 
     .device-state.fault {
-      background: transparent;
-      border-color: var(--accent);
-      color: var(--accent);
+      background: rgba(255, 59, 48, 0.12);
+      color: var(--danger);
     }
 
     .device-state.offline {
-      background: transparent;
-      border-color: var(--ink-faint);
-      color: var(--ink-faint);
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
     }
 
     .device-state.decommissioned {
-      background: transparent;
-      border-color: var(--status-warning);
-      color: var(--status-warning);
+      background: rgba(255, 149, 0, 0.12);
+      color: var(--warning);
     }
 
     .device-item.decommissioned {
-      opacity: 0.5;
+      opacity: 0.6;
     }
 
     .device-status-dot.decommissioned {
-      background: var(--status-warning);
+      background: var(--warning);
     }
 
     .device-decommissioned-notice {
-      color: var(--status-warning);
-      font-size: 10px;
+      color: var(--warning);
+      font-size: 11px;
       margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .device-current {
@@ -620,36 +603,35 @@
     }
 
     .device-current .value {
-      font-family: 'Instrument Serif', serif;
       font-size: 24px;
-      font-weight: 400;
-      color: var(--ink);
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
     }
 
     .device-current .unit {
-      font-size: 10px;
-      color: var(--ink-light);
+      font-size: 11px;
+      color: var(--text-secondary);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
 
     .empty-state {
       text-align: center;
       padding: 60px 20px;
-      color: var(--ink-light);
+      color: var(--text-secondary);
     }
 
     .empty-state h3 {
-      font-family: 'Instrument Serif', serif;
       font-size: 20px;
-      font-weight: 400;
-      margin-bottom: 12px;
-      color: var(--ink);
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
     }
 
     .empty-state p {
       margin-bottom: 24px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     /* ─────────────── MODALS ─────────────── */
@@ -660,7 +642,9 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(244, 241, 235, 0.95);
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -671,33 +655,34 @@
     }
 
     .modal {
-      background: var(--paper);
-      border: 2px solid var(--border);
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
       padding: 32px;
       max-width: 450px;
       width: 90%;
+      box-shadow: var(--shadow-lg);
     }
 
     .modal h2 {
-      font-family: 'Instrument Serif', serif;
       font-size: 24px;
-      font-weight: 400;
+      font-weight: 700;
       margin-bottom: 8px;
+      letter-spacing: -0.3px;
     }
 
     .modal p {
-      color: var(--ink-light);
-      font-size: 13px;
+      color: var(--text-secondary);
+      font-size: 14px;
       margin-bottom: 24px;
+      line-height: 1.5;
     }
 
     .modal h3 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--ink-light);
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
     }
 
     .modal-buttons {
@@ -722,30 +707,30 @@
     .back-link {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      color: var(--ink-light);
+      gap: 6px;
+      color: var(--accent);
       text-decoration: none;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-size: 14px;
+      font-weight: 500;
       margin-bottom: 16px;
+      transition: opacity 0.2s ease;
     }
 
     .back-link:hover {
-      color: var(--ink);
+      opacity: 0.7;
     }
 
     .device-title h1 {
-      font-family: 'Instrument Serif', serif;
       font-size: 32px;
-      font-weight: 400;
-      margin-bottom: 8px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
     }
 
     .device-title p {
-      color: var(--ink-light);
-      font-size: 12px;
-      font-family: 'IBM Plex Mono', monospace;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
     }
 
     .connection-badge {
@@ -753,76 +738,74 @@
       align-items: center;
       gap: 8px;
       padding: 10px 16px;
-      background: transparent;
-      border: 1px solid var(--border-light);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-sm);
     }
 
     .connection-badge .dot {
       width: 8px;
       height: 8px;
-      background: var(--ink-faint);
+      border-radius: 50%;
+      background: var(--text-tertiary);
     }
 
     .connection-badge .dot.connected {
-      background: var(--ink);
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
     }
 
     /* ─────────────── READINGS GRID ─────────────── */
     .readings-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 0;
-      margin-bottom: 32px;
-      border: 2px solid var(--border);
+      gap: 16px;
+      margin-bottom: 24px;
     }
 
     .reading-card {
-      background: transparent;
-      border: none;
-      border-right: 1px solid var(--border-light);
-      border-bottom: 1px solid var(--border-light);
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
       padding: 24px;
       text-align: center;
-    }
-
-    .reading-card:nth-child(3n) {
-      border-right: none;
+      box-shadow: var(--shadow-sm);
     }
 
     .reading-label {
-      font-size: 9px;
-      color: var(--ink-light);
+      font-size: 11px;
+      color: var(--text-secondary);
       margin-bottom: 8px;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 0.5px;
+      font-weight: 500;
     }
 
     .reading-value {
-      font-family: 'Instrument Serif', serif;
-      font-size: 36px;
-      font-weight: 400;
-      color: var(--ink);
+      font-size: 40px;
+      font-weight: 700;
+      color: var(--text-primary);
       line-height: 1;
       margin-bottom: 4px;
+      letter-spacing: -1px;
     }
 
     .reading-unit {
-      font-size: 10px;
-      color: var(--ink-faint);
+      font-size: 12px;
+      color: var(--text-tertiary);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
 
     /* ─────────────── STATE DISPLAY ─────────────── */
     .state-card {
-      background: transparent;
-      border: 2px solid var(--border);
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
       padding: 32px;
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
     }
 
     .state-indicator {
@@ -830,73 +813,70 @@
       align-items: center;
       gap: 16px;
       padding: 20px 48px;
-      background: transparent;
-      border: 2px solid var(--border);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
     }
 
     .state-indicator.running {
-      border-color: var(--ink);
+      background: rgba(52, 199, 89, 0.1);
     }
 
     .state-indicator.fault {
-      border-color: var(--accent);
+      background: rgba(255, 59, 48, 0.1);
     }
 
     .state-icon {
       width: 16px;
       height: 16px;
+      border-radius: 50%;
     }
 
     .state-icon.running {
-      background: var(--ink);
+      background: var(--success);
+      box-shadow: 0 0 12px rgba(52, 199, 89, 0.5);
     }
 
     .state-icon.stopped {
-      background: var(--ink-faint);
+      background: var(--text-tertiary);
     }
 
     .state-icon.fault {
-      background: var(--accent);
+      background: var(--danger);
+      box-shadow: 0 0 12px rgba(255, 59, 48, 0.5);
       animation: blink 1s steps(1) infinite;
     }
 
     .state-text {
-      font-family: 'IBM Plex Mono', monospace;
       font-size: 24px;
-      font-weight: 600;
-      letter-spacing: 4px;
+      font-weight: 700;
+      letter-spacing: 2px;
       text-transform: uppercase;
     }
 
-    .state-text.running { color: var(--ink); }
-    .state-text.stopped { color: var(--ink-faint); }
-    .state-text.fault { color: var(--accent); }
+    .state-text.running { color: var(--success); }
+    .state-text.stopped { color: var(--text-tertiary); }
+    .state-text.fault { color: var(--danger); }
 
     /* ─────────────── CONTROLS ─────────────── */
     .controls-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 0;
-      border: 2px solid var(--border);
+      gap: 16px;
     }
 
     .control-card {
-      background: transparent;
-      border: none;
-      border-right: 1px solid var(--border-light);
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
       padding: 24px;
-    }
-
-    .control-card:last-child {
-      border-right: none;
+      box-shadow: var(--shadow-sm);
     }
 
     .control-card h3 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
-      color: var(--ink-light);
+      font-size: 12px;
+      color: var(--text-secondary);
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 0.5px;
+      font-weight: 600;
       margin-bottom: 16px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border-light);
@@ -917,7 +897,7 @@
     .info-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
     }
 
     .info-item {
@@ -933,66 +913,61 @@
     }
 
     .info-item .label {
-      font-size: 11px;
-      color: var(--ink-light);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 13px;
+      color: var(--text-secondary);
     }
 
     .info-item .value {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
     }
 
     .status-badge {
       padding: 4px 10px;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border: 1px solid;
+      letter-spacing: 0.3px;
+      border-radius: 12px;
     }
 
     .status-badge.online {
-      background: transparent;
-      border-color: var(--ink);
-      color: var(--ink);
+      background: rgba(52, 199, 89, 0.12);
+      color: var(--success);
     }
 
     .status-badge.offline {
-      background: transparent;
-      border-color: var(--ink-faint);
-      color: var(--ink-faint);
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
     }
 
     .status-badge.active {
-      background: transparent;
-      border-color: var(--ink);
-      color: var(--ink);
+      background: rgba(0, 122, 255, 0.12);
+      color: var(--accent);
     }
 
     .status-badge.inactive {
-      background: transparent;
-      border-color: var(--ink-faint);
-      color: var(--ink-faint);
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
     }
 
     /* ─────────────── ADMIN BADGE ─────────────── */
     .admin-badge {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 9px;
-      padding: 2px 8px;
-      background: var(--ink);
-      color: var(--paper);
+      font-size: 10px;
+      padding: 3px 8px;
+      background: var(--accent);
+      color: white;
       margin-left: 8px;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
+      border-radius: 4px;
+      font-weight: 600;
     }
 
     .device-owner {
-      font-size: 10px;
-      color: var(--ink-light);
+      font-size: 12px;
+      color: var(--text-secondary);
       margin-top: 2px;
     }
 
@@ -1012,7 +987,8 @@
       width: 24px;
       height: 24px;
       border: 2px solid var(--border-light);
-      border-top-color: var(--ink);
+      border-top-color: var(--accent);
+      border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
 
@@ -1022,9 +998,19 @@
 
     /* ─────────────── RESPONSIVE ─────────────── */
     @media (max-width: 768px) {
+      .container {
+        padding: 16px;
+      }
+
       .header {
         flex-direction: column;
         gap: 16px;
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
+      }
+
+      .landing-hero {
+        padding: 48px 20px;
       }
 
       .landing-hero h1 {
@@ -1035,22 +1021,14 @@
         grid-template-columns: 1fr;
       }
 
-      .feature-card {
-        border-right: none;
-        border-bottom: 1px solid var(--border-light);
-      }
-
       .stats-grid {
         grid-template-columns: repeat(2, 1fr);
-      }
-
-      .stat-card:nth-child(2) {
-        border-right: none;
       }
 
       .device-item {
         grid-template-columns: auto 1fr;
         gap: 12px;
+        padding: 16px;
       }
 
       .device-state,
@@ -1067,9 +1045,24 @@
         grid-template-columns: 1fr;
       }
 
-      .control-card {
-        border-right: none;
-        border-bottom: 1px solid var(--border-light);
+      .readings-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .state-indicator {
+        padding: 16px 32px;
+      }
+
+      .state-text {
+        font-size: 18px;
+      }
+
+      .auth-container {
+        margin: 24px auto;
+      }
+
+      .auth-card {
+        padding: 24px;
       }
     }
   </style>
@@ -1091,7 +1084,7 @@
 
       <div class="landing-hero">
         <div class="logo-icon">FL</div>
-        <h1>Field<span style="color: var(--accent-cyan)">Logic</span></h1>
+        <h1>Field<span>Logic</span></h1>
         <p class="tagline">Industrial Pump Monitoring and Control Platform</p>
         <div class="landing-buttons">
           <button class="btn btn-primary" onclick="showPage('login')">Sign In</button>
@@ -1294,7 +1287,7 @@
           <div class="state-icon stopped" id="device-state-icon"></div>
           <div class="state-text stopped" id="device-state-text">---</div>
         </div>
-        <p style="margin-top: 16px; font-size: 12px; color: var(--text-muted);" id="device-last-seen">Waiting for data...</p>
+        <p style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);" id="device-last-seen">Waiting for data...</p>
       </div>
 
       <div class="readings-grid">
@@ -1417,8 +1410,8 @@
         </div>
       </form>
 
-      <div style="border-top: 1px solid #333; padding-top: 15px;">
-        <h3 style="margin: 0 0 10px; font-size: 14px; color: #888;">Registered Devices</h3>
+      <div style="border-top: 1px solid var(--border-light); padding-top: 15px;">
+        <h3 style="margin: 0 0 10px; font-size: 14px; color: var(--text-secondary);">Registered Devices</h3>
         <div id="registry-list" style="max-height: 300px; overflow-y: auto;">
           <div class="loading"><div class="spinner"></div></div>
         </div>
@@ -1857,21 +1850,21 @@
         if (error) throw error;
 
         if (!data || data.length === 0) {
-          listEl.innerHTML = '<p style="color: #666; text-align: center;">No devices in registry</p>';
+          listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No devices in registry</p>';
           return;
         }
 
         listEl.innerHTML = data.map(device => `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #0f0f23; border-radius: 6px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); margin-bottom: 8px;">
             <div>
-              <strong style="color: #00d4ff;">${device.device_id}</strong>
-              <span style="color: #888; margin-left: 10px;">${device.name || 'No name'}</span>
+              <strong style="color: var(--accent);">${device.device_id}</strong>
+              <span style="color: var(--text-secondary); margin-left: 10px;">${device.name || 'No name'}</span>
             </div>
             <button class="btn btn-small btn-danger" onclick="handleRemoveFromRegistry('${device.device_id}')" style="padding: 5px 10px; font-size: 12px;">Remove</button>
           </div>
         `).join('');
       } catch (error) {
-        listEl.innerHTML = '<p style="color: #ff4757;">Error loading registry: ' + error.message + '</p>';
+        listEl.innerHTML = '<p style="color: var(--danger);">Error loading registry: ' + error.message + '</p>';
       }
     }
 
@@ -2046,10 +2039,10 @@
         const lastSeenEl = document.getElementById('device-last-seen');
         if (secondsAgo > 10) {
           lastSeenEl.textContent = 'Last data: ' + secondsAgo + 's ago';
-          lastSeenEl.style.color = 'var(--status-fault)';
+          lastSeenEl.style.color = 'var(--warning)';
         } else {
           lastSeenEl.textContent = 'Live data';
-          lastSeenEl.style.color = 'var(--status-running)';
+          lastSeenEl.style.color = 'var(--success)';
         }
       }
 
