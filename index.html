@@ -1039,6 +1039,74 @@
       margin-right: 8px;
     }
 
+    /* ─────────────── USER MANAGEMENT TABLE ─────────────── */
+    .user-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .user-table th,
+    .user-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .user-table th {
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .user-table tr:hover {
+      background: var(--bg-secondary);
+    }
+
+    .user-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .user-role-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .user-role-badge.admin {
+      background: var(--accent);
+      color: white;
+    }
+
+    .user-role-badge.user {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+
+    .user-status-active {
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    .user-status-inactive {
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .user-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .user-actions .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
     /* ─────────────── SETTINGS PAGE ─────────────── */
     .settings-card {
       background: var(--bg-primary);
@@ -1458,6 +1526,7 @@
             <button class="btn btn-small" id="btn-my-devices" onclick="setAdminView(false)" style="opacity: 0.5;">My Devices</button>
             <button class="btn btn-small btn-primary" id="btn-all-devices" onclick="setAdminView(true)">All Devices (Admin)</button>
             <button class="btn btn-small btn-secondary" id="btn-registry" onclick="showRegistryModal()" style="margin-left: 10px;">Device Registry</button>
+            <button class="btn btn-small btn-secondary" onclick="showPage('users')">&#128101; User Management</button>
           </div>
         </div>
         <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
@@ -1812,6 +1881,62 @@
         <h3>Recent Updates</h3>
         <div id="update-history-list">
           <p style="color: var(--text-secondary);">No updates yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Management Page (Admin Only) -->
+  <div id="page-users" class="page">
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">FL</div>
+          <div class="logo-text">Field<span>Logic</span></div>
+        </div>
+        <div class="user-menu">
+          <span class="user-email" id="users-user-email"></span>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+            <span class="icon-sun">&#9728;</span>
+            <span class="icon-moon">&#9790;</span>
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="showPage('settings')" title="Settings">&#9881;</button>
+          <button class="btn btn-secondary btn-small" onclick="handleLogout()">Logout</button>
+        </div>
+      </header>
+
+      <a href="#" class="back-link" onclick="showPage('dashboard')">&#8592; Back to Dashboard</a>
+
+      <h1 style="margin-bottom: 24px; font-size: 28px; font-weight: 700;">User Management</h1>
+
+      <div id="users-error" class="alert alert-error" style="display: none;"></div>
+      <div id="users-success" class="alert alert-success" style="display: none;"></div>
+
+      <!-- User Stats -->
+      <div class="stats-grid" style="margin-bottom: 24px;">
+        <div class="stat-card">
+          <div class="stat-label">Total Users</div>
+          <div class="stat-value" id="stat-total-users">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Admins</div>
+          <div class="stat-value" id="stat-admins">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Users</div>
+          <div class="stat-value" id="stat-active-users">0</div>
+        </div>
+      </div>
+
+      <!-- User List -->
+      <div class="settings-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="margin: 0;">All Users</h3>
+          <button class="btn btn-secondary btn-small" onclick="loadAllUsers()">&#8635; Refresh</button>
+        </div>
+
+        <div id="users-list" style="overflow-x: auto;">
+          <p style="color: var(--text-secondary);">Loading users...</p>
         </div>
       </div>
     </div>
@@ -3408,9 +3533,155 @@
       }
     }
 
-    // Handle firmware page navigation
+    // ============================================
+    // USER MANAGEMENT (Admin Only)
+    // ============================================
+    async function loadAllUsers() {
+      const listEl = document.getElementById('users-list');
+      const errorEl = document.getElementById('users-error');
+      const successEl = document.getElementById('users-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+      listEl.innerHTML = '<p style="color: var(--text-secondary);">Loading users...</p>';
+
+      try {
+        const { data: users, error } = await supabaseClient
+          .from('user_profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Update stats
+        const totalUsers = users.length;
+        const adminCount = users.filter(u => u.is_admin).length;
+        const activeCount = users.filter(u => u.is_active !== false).length;
+
+        document.getElementById('stat-total-users').textContent = totalUsers;
+        document.getElementById('stat-admins').textContent = adminCount;
+        document.getElementById('stat-active-users').textContent = activeCount;
+
+        if (users.length === 0) {
+          listEl.innerHTML = '<p style="color: var(--text-secondary);">No users found.</p>';
+          return;
+        }
+
+        // Build table
+        let html = '<table class="user-table"><thead><tr>';
+        html += '<th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+
+        users.forEach(user => {
+          const isCurrentUser = user.id === currentUser.id;
+          const isActive = user.is_active !== false;
+          const joinDate = new Date(user.created_at).toLocaleDateString();
+
+          html += '<tr>';
+          html += '<td>' + (user.full_name || '<em>Not set</em>') + '</td>';
+          html += '<td>' + user.email + '</td>';
+          html += '<td><span class="user-role-badge ' + (user.is_admin ? 'admin' : 'user') + '">' + (user.is_admin ? 'Admin' : 'User') + '</span></td>';
+          html += '<td><span class="' + (isActive ? 'user-status-active' : 'user-status-inactive') + '">' + (isActive ? 'Active' : 'Inactive') + '</span></td>';
+          html += '<td>' + joinDate + '</td>';
+          html += '<td class="user-actions">';
+
+          if (isCurrentUser) {
+            html += '<span style="color: var(--text-tertiary); font-size: 12px;">Current user</span>';
+          } else {
+            if (user.is_admin) {
+              html += '<button class="btn btn-small btn-secondary" onclick="toggleUserAdmin(\'' + user.id + '\', false)">Demote</button>';
+            } else {
+              html += '<button class="btn btn-small btn-primary" onclick="toggleUserAdmin(\'' + user.id + '\', true)">Promote</button>';
+            }
+            if (isActive) {
+              html += '<button class="btn btn-small btn-danger" onclick="toggleUserActive(\'' + user.id + '\', false)">Deactivate</button>';
+            } else {
+              html += '<button class="btn btn-small btn-success" onclick="toggleUserActive(\'' + user.id + '\', true)">Activate</button>';
+            }
+          }
+
+          html += '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        listEl.innerHTML = html;
+
+      } catch (error) {
+        console.error('Error loading users:', error);
+        errorEl.textContent = 'Error loading users: ' + error.message;
+        errorEl.style.display = 'block';
+        listEl.innerHTML = '';
+      }
+    }
+
+    async function toggleUserAdmin(userId, makeAdmin) {
+      const errorEl = document.getElementById('users-error');
+      const successEl = document.getElementById('users-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      try {
+        const { error } = await supabaseClient
+          .from('user_profiles')
+          .update({ is_admin: makeAdmin, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+
+        if (error) throw error;
+
+        successEl.textContent = makeAdmin ? 'User promoted to admin.' : 'User demoted from admin.';
+        successEl.style.display = 'block';
+        loadAllUsers();
+
+      } catch (error) {
+        console.error('Error updating user:', error);
+        errorEl.textContent = 'Error updating user: ' + error.message;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    async function toggleUserActive(userId, makeActive) {
+      const errorEl = document.getElementById('users-error');
+      const successEl = document.getElementById('users-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      try {
+        const { error } = await supabaseClient
+          .from('user_profiles')
+          .update({ is_active: makeActive, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+
+        if (error) throw error;
+
+        successEl.textContent = makeActive ? 'User activated.' : 'User deactivated.';
+        successEl.style.display = 'block';
+        loadAllUsers();
+
+      } catch (error) {
+        console.error('Error updating user:', error);
+        errorEl.textContent = 'Error updating user: ' + error.message;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    // Handle firmware and users page navigation
     const originalShowPage = showPage;
     showPage = function(pageId) {
+      // Admin-only page access check
+      if (pageId === 'users') {
+        if (!isAdmin) {
+          alert('Access denied. Admin privileges required.');
+          return;
+        }
+        document.getElementById('users-user-email').textContent = currentUser ? currentUser.email : '';
+        originalShowPage(pageId);
+        loadAllUsers();
+        return;
+      }
+
       originalShowPage(pageId);
 
       if (pageId === 'firmware') {

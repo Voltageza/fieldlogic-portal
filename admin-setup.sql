@@ -85,3 +85,16 @@ ON CONFLICT (id) DO NOTHING;
 
 -- To make a user admin, run this (uncomment and change email):
 -- UPDATE user_profiles SET is_admin = TRUE WHERE email = 'your-email@example.com';
+
+-- ============================================
+-- USER MANAGEMENT (Admin Features)
+-- ============================================
+
+-- Policy: Admins can update any user's profile
+CREATE POLICY "Admins can update any user profile" ON user_profiles
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND is_admin = TRUE)
+  );
+
+-- Add is_active column for user deactivation
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
