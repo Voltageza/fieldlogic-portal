@@ -3245,10 +3245,9 @@
         }
 
         // Connect to MQTT broker
-        const client = mqtt.connect(MQTT_BROKER, {
+        const client = mqtt.connect(MQTT_BROKER_URL, {
           username: MQTT_USERNAME,
-          password: MQTT_PASSWORD,
-          protocol: 'wss'
+          password: MQTT_PASSWORD
         });
 
         client.on('connect', async function() {
