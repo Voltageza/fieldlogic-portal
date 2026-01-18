@@ -176,8 +176,128 @@ async function handleTelegramWebhook(update: any): Promise<Response> {
   return new Response("OK");
 }
 
-// Handle notification request (called from frontend)
+// Handle notification from ESP32 device (only needs device_id)
+async function handleDeviceFault(data: any): Promise<Response> {
+  const { device_id } = data;
+
+  if (!device_id) {
+    return Response.json({ success: false, error: "Missing device_id" });
+  }
+
+  console.log("Fault notification for device:", device_id);
+
+  // Look up all users who have this device registered
+  const deviceRecords = await supabaseQuery("devices", "GET", {
+    select: "user_id,name",
+    eq: { device_id },
+  });
+
+  if (!deviceRecords || deviceRecords.length === 0) {
+    return Response.json({ success: false, error: "Device not registered" });
+  }
+
+  let notificationsSent = 0;
+
+  // Send notification to each user who owns this device
+  for (const device of deviceRecords) {
+    const user_id = device.user_id;
+    const device_name = device.name || device_id;
+
+    // Get user's Telegram info
+    const profile = await supabaseQuery("user_profiles", "GET", {
+      select: "telegram_chat_id,telegram_verified",
+      eq: { id: user_id },
+      single: true,
+    });
+
+    if (!profile?.telegram_verified || !profile?.telegram_chat_id) {
+      console.log("User has no linked Telegram:", user_id);
+      continue;
+    }
+
+    // Check notification preferences
+    const prefs = await supabaseQuery("notification_preferences", "GET", {
+      select: "telegram_fault_enabled,last_fault_notification,notification_cooldown_minutes",
+      eq: { user_id, device_id },
+      single: true,
+    });
+
+    if (prefs?.telegram_fault_enabled === false) {
+      console.log("Notifications disabled for user:", user_id);
+      continue;
+    }
+
+    // Rate limiting
+    const cooldownMinutes = prefs?.notification_cooldown_minutes ?? 15;
+    if (prefs?.last_fault_notification) {
+      const elapsed = Date.now() - new Date(prefs.last_fault_notification).getTime();
+      if (elapsed < cooldownMinutes * 60 * 1000) {
+        console.log("Rate limited for user:", user_id);
+        continue;
+      }
+    }
+
+    // Send notification
+    const timestamp = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
+    const message =
+      `🚨 <b>FAULT ALERT</b>\n\n` +
+      `Device: <b>${device_name}</b>\n` +
+      `ID: ${device_id}\n` +
+      `Status: <b>FAULT</b>\n` +
+      `Time: ${timestamp}\n\n` +
+      `Open FieldLogic to view details and reset.`;
+
+    await sendTelegram(profile.telegram_chat_id, message);
+
+    // Update last notification time
+    await fetch(`${SUPABASE_URL}/rest/v1/notification_preferences`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates",
+      },
+      body: JSON.stringify({
+        user_id,
+        device_id,
+        last_fault_notification: new Date().toISOString()
+      }),
+    });
+
+    // Log notification
+    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id,
+        device_id,
+        device_name,
+        notification_type: "fault",
+        channel: "telegram",
+        message_body: message,
+        device_state: "FAULT",
+        status: "sent",
+      }),
+    });
+
+    notificationsSent++;
+  }
+
+  return Response.json({ success: true, notifications_sent: notificationsSent });
+}
+
+// Handle notification request (called from frontend - legacy support)
 async function handleSendNotification(data: any): Promise<Response> {
+  // If only device_id is provided, use the device fault handler
+  if (data.device_id && !data.user_id) {
+    return handleDeviceFault(data);
+  }
+
   const { user_id, device_id, device_name } = data;
 
   if (!user_id || !device_id) {
@@ -263,6 +383,81 @@ async function handleSendNotification(data: any): Promise<Response> {
   return Response.json({ success: true });
 }
 
+// Handle admin password reset
+async function handleAdminPasswordReset(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { user_id, new_password, admin_token } = body;
+
+    if (!user_id || !new_password) {
+      return Response.json({ success: false, error: "Missing user_id or new_password" });
+    }
+
+    if (!admin_token) {
+      return Response.json({ success: false, error: "Missing admin_token" });
+    }
+
+    // Verify the admin token and check if user is admin
+    const verifyResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${admin_token}`,
+      },
+    });
+
+    if (!verifyResponse.ok) {
+      return Response.json({ success: false, error: "Invalid token" });
+    }
+
+    const adminUser = await verifyResponse.json();
+
+    // Check if requesting user is an admin
+    const adminProfile = await supabaseQuery("user_profiles", "GET", {
+      select: "is_admin",
+      eq: { id: adminUser.id },
+      single: true,
+    });
+
+    if (!adminProfile?.is_admin) {
+      return Response.json({ success: false, error: "Unauthorized: Admin access required" });
+    }
+
+    // Prevent admin from resetting their own password through this endpoint
+    if (adminUser.id === user_id) {
+      return Response.json({ success: false, error: "Cannot reset your own password through admin panel" });
+    }
+
+    // Password validation
+    if (new_password.length < 6) {
+      return Response.json({ success: false, error: "Password must be at least 6 characters" });
+    }
+
+    // Update user password using Admin API
+    const updateResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${user_id}`, {
+      method: "PUT",
+      headers: {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: new_password }),
+    });
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error("Password update failed:", errorText);
+      return Response.json({ success: false, error: "Failed to update password" });
+    }
+
+    console.log("Password reset successful for user:", user_id);
+    return Response.json({ success: true });
+
+  } catch (error) {
+    console.error("Password reset error:", error);
+    return Response.json({ success: false, error: error.message });
+  }
+}
+
 // Main request handler
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
@@ -295,10 +490,27 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Send notification endpoint
+    // Send notification endpoint (from frontend)
     if (url.pathname === "/notify") {
       const body = await req.json();
       const response = await handleSendNotification(body);
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fault endpoint (from ESP32 device)
+    if (url.pathname === "/fault") {
+      const body = await req.json();
+      const response = await handleDeviceFault(body);
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Admin password reset endpoint
+    if (url.pathname === "/admin/reset-password") {
+      const response = await handleAdminPasswordReset(req);
       return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
