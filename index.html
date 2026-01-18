@@ -3020,7 +3020,7 @@
         uploadProgress.style.display = 'block';
 
         // Get hardware type ID
-        const { data: hardwareTypes, error: hwError } = await supabase
+        const { data: hardwareTypes, error: hwError } = await supabaseClient
           .from('hardware_types')
           .select('id')
           .eq('type_code', hardwareType)
@@ -3032,7 +3032,7 @@
         const fileName = hardwareType.toLowerCase().replace('_', '/') + '/v' + version + '.bin';
         uploadProgressText.textContent = 'Uploading firmware file...';
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabaseClient.storage
           .from('firmware-releases')
           .upload(fileName, file, {
             cacheControl: '3600',
@@ -3045,12 +3045,12 @@
         uploadProgressText.textContent = 'Creating firmware release record...';
 
         // Get public URL
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = supabaseClient.storage
           .from('firmware-releases')
           .getPublicUrl(fileName);
 
         // Insert firmware release record
-        const { data: releaseData, error: releaseError } = await supabase
+        const { data: releaseData, error: releaseError } = await supabaseClient
           .from('firmware_releases')
           .insert({
             hardware_type_id: hardwareTypes.id,
@@ -3066,7 +3066,7 @@
 
         if (releaseError) {
           // If record creation fails, delete the uploaded file
-          await supabase.storage.from('firmware-releases').remove([fileName]);
+          await supabaseClient.storage.from('firmware-releases').remove([fileName]);
           throw releaseError;
         }
 
@@ -3105,7 +3105,7 @@
       const listEl = document.getElementById('firmware-releases-list');
 
       try {
-        const { data: releases, error } = await supabase
+        const { data: releases, error } = await supabaseClient
           .from('firmware_releases')
           .select(`
             *,
@@ -3161,7 +3161,7 @@
       const listEl = document.getElementById('device-firmware-list');
 
       try {
-        const { data: devices, error } = await supabase
+        const { data: devices, error } = await supabaseClient
           .from('devices')
           .select(`
             *,
@@ -3222,7 +3222,7 @@
 
       try {
         // Get firmware release details
-        const { data: release, error: releaseError } = await supabase
+        const { data: release, error: releaseError } = await supabaseClient
           .from('firmware_releases')
           .select('*')
           .eq('id', releaseId)
@@ -3231,7 +3231,7 @@
         if (releaseError) throw releaseError;
 
         // Get all online devices with this hardware type
-        const { data: devices, error: devicesError } = await supabase
+        const { data: devices, error: devicesError } = await supabaseClient
           .from('devices')
           .select('device_id, hardware_types!inner(type_code)')
           .eq('hardware_types.type_code', hardwareType)
@@ -3270,7 +3270,7 @@
                 successCount++;
 
                 // Record update in database
-                supabase.from('firmware_updates').insert({
+                supabaseClient.from('firmware_updates').insert({
                   device_id: device.device_id,
                   firmware_release_id: releaseId,
                   from_version: null,
