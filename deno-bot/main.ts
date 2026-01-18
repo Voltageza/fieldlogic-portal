@@ -383,6 +383,96 @@ async function handleSendNotification(data: any): Promise<Response> {
   return Response.json({ success: true });
 }
 
+// Handle admin create user
+async function handleAdminCreateUser(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { email, password, full_name, is_admin, admin_token } = body;
+
+    if (!email || !password) {
+      return Response.json({ success: false, error: "Missing email or password" });
+    }
+
+    if (!admin_token) {
+      return Response.json({ success: false, error: "Missing admin_token" });
+    }
+
+    // Verify the admin token and check if user is admin
+    const verifyResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${admin_token}`,
+      },
+    });
+
+    if (!verifyResponse.ok) {
+      return Response.json({ success: false, error: "Invalid token" });
+    }
+
+    const adminUser = await verifyResponse.json();
+
+    // Check if requesting user is an admin
+    const adminProfile = await supabaseQuery("user_profiles", "GET", {
+      select: "is_admin",
+      eq: { id: adminUser.id },
+      single: true,
+    });
+
+    if (!adminProfile?.is_admin) {
+      return Response.json({ success: false, error: "Unauthorized: Admin access required" });
+    }
+
+    // Password validation
+    if (password.length < 6) {
+      return Response.json({ success: false, error: "Password must be at least 6 characters" });
+    }
+
+    // Create user using Admin API
+    const createResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,  // Auto-confirm email
+        user_metadata: { full_name: full_name || "" }
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const errorData = await createResponse.json();
+      console.error("User creation failed:", errorData);
+      return Response.json({ success: false, error: errorData.message || "Failed to create user" });
+    }
+
+    const newUser = await createResponse.json();
+    console.log("User created:", newUser.id);
+
+    // If is_admin flag is set, update the user profile
+    if (is_admin) {
+      await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${newUser.id}`, {
+        method: "PATCH",
+        headers: {
+          "apikey": SUPABASE_SERVICE_KEY,
+          "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ is_admin: true }),
+      });
+    }
+
+    return Response.json({ success: true, user_id: newUser.id });
+
+  } catch (error) {
+    console.error("Create user error:", error);
+    return Response.json({ success: false, error: error.message });
+  }
+}
+
 // Handle admin password reset
 async function handleAdminPasswordReset(req: Request): Promise<Response> {
   try {
@@ -503,6 +593,14 @@ Deno.serve(async (req: Request) => {
     if (url.pathname === "/fault") {
       const body = await req.json();
       const response = await handleDeviceFault(body);
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Admin create user endpoint
+    if (url.pathname === "/admin/create-user") {
+      const response = await handleAdminCreateUser(req);
       return new Response(response.body, {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
