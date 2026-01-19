@@ -2839,6 +2839,9 @@
           data.lastSeen = Date.now();
           deviceLastData[deviceId] = data;
 
+          // Sync firmware version and status to database
+          syncDeviceToDatabase(deviceId, data);
+
           // FAULT DETECTION: Trigger notification if state changed to FAULT
           if (currentState === 'FAULT' && previousState !== 'FAULT') {
             console.log('FAULT detected on device:', deviceId);
@@ -2868,6 +2871,50 @@
         mqttClient.end();
         mqttClient = null;
       }
+    }
+
+    // ============================================
+    // DEVICE TELEMETRY SYNC TO DATABASE
+    // ============================================
+    var deviceSyncTimers = {};
+    var lastSyncedVersions = {};
+
+    // Sync device telemetry to Supabase (debounced to avoid excessive writes)
+    async function syncDeviceToDatabase(deviceId, data) {
+      // Only sync if we have firmware_version in telemetry
+      if (!data.firmware_version) return;
+
+      // Skip if version hasn't changed since last sync
+      if (lastSyncedVersions[deviceId] === data.firmware_version) return;
+
+      // Debounce: wait 5 seconds after last telemetry before syncing
+      if (deviceSyncTimers[deviceId]) {
+        clearTimeout(deviceSyncTimers[deviceId]);
+      }
+
+      deviceSyncTimers[deviceId] = setTimeout(async () => {
+        try {
+          const updateData = {
+            status: 'online',
+            last_seen: new Date().toISOString(),
+            firmware_version: data.firmware_version
+          };
+
+          const { error } = await supabaseClient
+            .from('devices')
+            .update(updateData)
+            .eq('device_id', deviceId);
+
+          if (error) {
+            console.error('Error syncing device to DB:', error);
+          } else {
+            console.log('Synced device', deviceId, 'firmware:', data.firmware_version);
+            lastSyncedVersions[deviceId] = data.firmware_version;
+          }
+        } catch (e) {
+          console.error('Device sync error:', e);
+        }
+      }, 5000);
     }
 
     // ============================================
