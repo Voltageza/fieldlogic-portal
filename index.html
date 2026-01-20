@@ -1016,7 +1016,16 @@
       color: var(--text-tertiary);
     }
 
-    /* ─────────────── ADMIN BADGE ─────────────── */
+    /* ─────────────── USER DISPLAY ─────────────── */
+    .user-name {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
     .admin-badge {
       font-size: 10px;
       padding: 3px 8px;
@@ -1027,6 +1036,7 @@
       letter-spacing: 0.5px;
       border-radius: 4px;
       font-weight: 600;
+      vertical-align: middle;
     }
 
     .device-owner {
@@ -1035,8 +1045,42 @@
       margin-top: 2px;
     }
 
-    #admin-toggle .btn {
-      margin-right: 8px;
+    /* ─────────────── ADMIN NAVIGATION TABS ─────────────── */
+    .admin-nav {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      margin-top: 12px;
+    }
+
+    .admin-nav .btn {
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+      text-align: center;
+      font-size: 13px;
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
+
+    .btn-tab {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-tab:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .btn-tab.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
     }
 
     /* ─────────────── USER MANAGEMENT TABLE ─────────────── */
@@ -1293,10 +1337,58 @@
       }
 
       .header {
-        flex-direction: column;
-        gap: 16px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
         padding: 12px 16px;
         border-radius: var(--radius-md);
+      }
+
+      .user-menu {
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .user-email {
+        font-size: 12px;
+        order: -1;
+        width: 100%;
+        text-align: right;
+        margin-bottom: 4px;
+      }
+
+      .user-name {
+        max-width: 150px;
+      }
+
+      /* Hide less important buttons on mobile header */
+      .user-menu .btn-secondary:not(:last-child) {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      /* Admin nav as proper tab bar on mobile */
+      .admin-nav {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .admin-nav .btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 13px;
+        justify-content: center;
+      }
+
+      .dashboard-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .dashboard-header .btn-primary {
+        width: 100%;
       }
 
       .landing-hero {
@@ -1353,6 +1445,19 @@
 
       .auth-card {
         padding: 24px;
+      }
+
+      /* Firmware table responsive */
+      #device-firmware-list table,
+      .user-table {
+        font-size: 12px;
+      }
+
+      #device-firmware-list th,
+      #device-firmware-list td,
+      .user-table th,
+      .user-table td {
+        padding: 8px 6px;
       }
     }
   </style>
@@ -1522,11 +1627,11 @@
       <div class="dashboard-header">
         <div>
           <h1 id="dashboard-title">My Devices</h1>
-          <div id="admin-toggle" style="display: none; margin-top: 8px;">
-            <button class="btn btn-small" id="btn-my-devices" onclick="setAdminView(false)" style="opacity: 0.5;">My Devices</button>
-            <button class="btn btn-small btn-primary" id="btn-all-devices" onclick="setAdminView(true)">All Devices (Admin)</button>
-            <button class="btn btn-small btn-secondary" id="btn-registry" onclick="showRegistryModal()" style="margin-left: 10px;">Device Registry</button>
-            <button class="btn btn-small btn-secondary" onclick="showPage('users')">&#128101; User Management</button>
+          <div id="admin-toggle" class="admin-nav">
+            <button class="btn btn-small btn-tab active" id="btn-all-devices" onclick="setAdminView(true)">All Devices</button>
+            <button class="btn btn-small btn-tab" id="btn-my-devices" onclick="setAdminView(false)">My Devices</button>
+            <button class="btn btn-small btn-tab" id="btn-registry" onclick="showRegistryModal()">Registry</button>
+            <button class="btn btn-small btn-tab" id="btn-users" onclick="showPage('users')">Users</button>
           </div>
         </div>
         <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
@@ -2168,37 +2273,55 @@
     // ============================================
     // ADMIN FUNCTIONALITY
     // ============================================
+    var currentUserName = ''; // Store user's display name
+
     async function checkIsAdmin() {
       try {
         const { data, error } = await supabaseClient
           .from('user_profiles')
-          .select('is_admin')
+          .select('is_admin, full_name')
           .eq('id', currentUser.id)
           .single();
 
         if (error) {
           console.log('Profile not found, user is not admin');
           isAdmin = false;
+          currentUserName = '';
         } else {
           isAdmin = data.is_admin === true;
+          currentUserName = data.full_name || '';
         }
 
-        // Show/hide admin toggle
-        const adminToggle = document.getElementById('admin-toggle');
-        const userEmailEl = document.getElementById('user-email');
-        if (isAdmin) {
-          adminToggle.style.display = 'block';
-          userEmailEl.innerHTML = currentUser.email + '<span class="admin-badge">Admin</span>';
-        } else {
-          adminToggle.style.display = 'none';
-          userEmailEl.textContent = currentUser.email;
-        }
+        // Update all user display elements
+        updateUserDisplay();
 
-        console.log('Is admin:', isAdmin);
+        console.log('Is admin:', isAdmin, 'Name:', currentUserName);
       } catch (e) {
         console.error('Error checking admin status:', e);
         isAdmin = false;
       }
+    }
+
+    function updateUserDisplay() {
+      // Get display name: prefer full_name, fallback to first part of email
+      const shortName = currentUserName || currentUser.email.split('@')[0];
+
+      // Show/hide admin navigation
+      const adminNav = document.getElementById('admin-toggle');
+      if (adminNav) {
+        adminNav.style.display = isAdmin ? 'flex' : 'none';
+      }
+
+      // Update all user-email elements across pages
+      const userEmailEls = document.querySelectorAll('.user-email');
+      userEmailEls.forEach(el => {
+        if (isAdmin) {
+          el.innerHTML = '<span class="user-name">' + shortName + '</span><span class="admin-badge">Admin</span>';
+        } else {
+          el.innerHTML = '<span class="user-name">' + shortName + '</span>';
+        }
+        el.setAttribute('title', currentUser.email); // Full email on hover
+      });
     }
 
     function setAdminView(showAll) {
@@ -2210,16 +2333,12 @@
       const title = document.getElementById('dashboard-title');
 
       if (showAll) {
-        btnMy.classList.remove('btn-primary');
-        btnMy.style.opacity = '0.5';
-        btnAll.classList.add('btn-primary');
-        btnAll.style.opacity = '1';
-        title.textContent = 'All Devices (Admin View)';
+        btnMy.classList.remove('active');
+        btnAll.classList.add('active');
+        title.textContent = 'All Devices';
       } else {
-        btnMy.classList.add('btn-primary');
-        btnMy.style.opacity = '1';
-        btnAll.classList.remove('btn-primary');
-        btnAll.style.opacity = '0.5';
+        btnMy.classList.add('active');
+        btnAll.classList.remove('active');
         title.textContent = 'My Devices';
       }
 
@@ -3454,14 +3573,18 @@
         html += '</tr></thead><tbody>';
 
         devices.forEach(device => {
-          const statusColor = device.status === 'online' ? 'var(--success)' : 'var(--text-secondary)';
+          // Calculate actual online status based on last_seen (15 second threshold)
+          const lastSeenTime = device.last_seen ? new Date(device.last_seen).getTime() : 0;
+          const isOnline = lastSeenTime && (Date.now() - lastSeenTime < 15000);
+          const actualStatus = isOnline ? 'online' : 'offline';
+          const statusColor = isOnline ? 'var(--success)' : 'var(--text-secondary)';
           const lastSeen = device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never';
 
           html += '<tr style="border-bottom: 1px solid var(--border-light);">';
           html += '<td style="padding: 12px;"><strong>' + device.device_id + '</strong><br><small style="color: var(--text-secondary);">' + (device.name || 'Unnamed') + '</small></td>';
           html += '<td style="padding: 12px;">' + (device.hardware_types ? device.hardware_types.name : 'Unknown') + '</td>';
           html += '<td style="padding: 12px; font-family: monospace;">' + (device.firmware_version || 'Unknown') + '</td>';
-          html += '<td style="padding: 12px; color: ' + statusColor + ';">' + device.status + '</td>';
+          html += '<td style="padding: 12px; color: ' + statusColor + ';">' + actualStatus + '</td>';
           html += '<td style="padding: 12px;">' + lastSeen + '</td>';
           html += '</tr>';
         });
