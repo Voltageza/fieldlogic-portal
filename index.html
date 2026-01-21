@@ -3075,9 +3075,9 @@
         document.getElementById('schedule-fri').checked = (days & 32) !== 0;
         document.getElementById('schedule-sat').checked = (days & 64) !== 0;
       }
-      // Device time display
-      if (data.current_time) {
-        document.getElementById('device-time').textContent = 'Device time: ' + data.current_time;
+      // Device time display (from telemetry "time" or GET_SETTINGS "current_time")
+      if (data.time || data.current_time) {
+        document.getElementById('device-time').textContent = 'Device time: ' + (data.time || data.current_time);
       }
       // Protection settings
       if (data.overcurrent_protection !== undefined) {
