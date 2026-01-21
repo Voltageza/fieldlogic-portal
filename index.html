@@ -1216,6 +1216,37 @@
       transform: translateX(22px);
     }
 
+    /* Day checkbox for schedule */
+    .day-checkbox {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .day-checkbox:hover {
+      border-color: var(--accent);
+    }
+    .day-checkbox input {
+      display: none;
+    }
+    .day-checkbox span {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .day-checkbox input:checked + span {
+      color: var(--accent);
+    }
+    .day-checkbox:has(input:checked) {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+    }
+
     /* Device preference item */
     .device-pref-item {
       display: flex;
@@ -1767,6 +1798,75 @@
             <button class="btn btn-secondary" onclick="editDeviceName()">Rename Device</button>
             <button class="btn btn-danger" onclick="confirmRemoveDevice()">Remove Device</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Schedule Card -->
+      <div class="settings-card" style="margin-top: 20px;">
+        <h3>Schedule</h3>
+        <div class="device-pref-item">
+          <div>
+            <strong>Enable Schedule</strong>
+            <p style="font-size: 12px; color: var(--text-secondary);">Auto start/stop based on time</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="schedule-enabled" onchange="updateScheduleEnabled()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="schedule-times" style="margin-top: 16px;">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 1; min-width: 120px;">
+              <label>Start Time</label>
+              <input type="time" class="form-input" id="schedule-start" value="06:00">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 120px;">
+              <label>End Time</label>
+              <input type="time" class="form-input" id="schedule-end" value="18:00">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Days</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+              <label class="day-checkbox"><input type="checkbox" id="schedule-sun" checked><span>Sun</span></label>
+              <label class="day-checkbox"><input type="checkbox" id="schedule-mon" checked><span>Mon</span></label>
+              <label class="day-checkbox"><input type="checkbox" id="schedule-tue" checked><span>Tue</span></label>
+              <label class="day-checkbox"><input type="checkbox" id="schedule-wed" checked><span>Wed</span></label>
+              <label class="day-checkbox"><input type="checkbox" id="schedule-thu" checked><span>Thu</span></label>
+              <label class="day-checkbox"><input type="checkbox" id="schedule-fri" checked><span>Fri</span></label>
+              <label class="day-checkbox"><input type="checkbox" id="schedule-sat" checked><span>Sat</span></label>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top: 12px;">Save Schedule</button>
+        </div>
+        <p id="device-time" style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">Device time: --:--:--</p>
+      </div>
+
+      <!-- Protection Card -->
+      <div class="settings-card" style="margin-top: 20px;">
+        <h3>Protection Settings</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Warning: Disabling protection may damage equipment
+        </p>
+        <div class="device-pref-item">
+          <div>
+            <strong>Overcurrent Protection</strong>
+            <p style="font-size: 12px; color: var(--text-secondary);">Trips on high current</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="protection-overcurrent" checked onchange="updateProtection()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="device-pref-item">
+          <div>
+            <strong>Dry Run Protection</strong>
+            <p style="font-size: 12px; color: var(--text-secondary);">Trips on low current</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="protection-dryrun" checked onchange="updateProtection()">
+            <span class="toggle-slider"></span>
+          </label>
         </div>
       </div>
     </div>
@@ -2784,6 +2884,16 @@
       // Subscribe specifically to this device if not already
       if (mqttClient && mqttClient.connected) {
         mqttClient.subscribe('fieldlink/' + deviceId + '/telemetry');
+        // Request current settings from device
+        requestDeviceSettings();
+      }
+    }
+
+    function requestDeviceSettings() {
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, JSON.stringify({command: 'GET_SETTINGS'}));
+        console.log('Requested device settings');
       }
     }
 
@@ -2858,6 +2968,9 @@
       // Button states
       document.getElementById('device-btn-start').disabled = state === 'FAULT' || !isOnline;
       document.getElementById('device-btn-reset').disabled = state !== 'FAULT' || !isOnline;
+
+      // Update schedule and protection settings UI
+      updateDeviceSettings(data);
     }
 
     function sendDeviceCommand(cmd) {
@@ -2865,6 +2978,107 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent command:', topic, cmd);
+      }
+    }
+
+    // ============================================
+    // SCHEDULE FUNCTIONS
+    // ============================================
+    function updateScheduleEnabled() {
+      // Just visual toggle, actual save happens with saveSchedule()
+    }
+
+    function saveSchedule() {
+      const enabled = document.getElementById('schedule-enabled').checked;
+      const start = document.getElementById('schedule-start').value.split(':');
+      const end = document.getElementById('schedule-end').value.split(':');
+
+      // Calculate days bitmask from checkboxes
+      let days = 0;
+      if (document.getElementById('schedule-sun').checked) days |= 1;
+      if (document.getElementById('schedule-mon').checked) days |= 2;
+      if (document.getElementById('schedule-tue').checked) days |= 4;
+      if (document.getElementById('schedule-wed').checked) days |= 8;
+      if (document.getElementById('schedule-thu').checked) days |= 16;
+      if (document.getElementById('schedule-fri').checked) days |= 32;
+      if (document.getElementById('schedule-sat').checked) days |= 64;
+
+      const cmd = JSON.stringify({
+        command: 'SET_SCHEDULE',
+        enabled: enabled,
+        start_hour: parseInt(start[0]),
+        start_minute: parseInt(start[1]),
+        end_hour: parseInt(end[0]),
+        end_minute: parseInt(end[1]),
+        days: days
+      });
+
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, cmd);
+        console.log('Sent schedule command:', cmd);
+        alert('Schedule saved');
+      } else {
+        alert('Not connected to device');
+      }
+    }
+
+    // ============================================
+    // PROTECTION FUNCTIONS
+    // ============================================
+    function updateProtection() {
+      const overcurrent = document.getElementById('protection-overcurrent').checked;
+      const dryrun = document.getElementById('protection-dryrun').checked;
+
+      const cmd = JSON.stringify({
+        command: 'SET_PROTECTION',
+        overcurrent_enabled: overcurrent,
+        dryrun_enabled: dryrun
+      });
+
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, cmd);
+        console.log('Sent protection command:', cmd);
+      }
+    }
+
+    // Update UI from telemetry data
+    function updateDeviceSettings(data) {
+      // Schedule settings
+      if (data.schedule_enabled !== undefined) {
+        document.getElementById('schedule-enabled').checked = data.schedule_enabled;
+      }
+      if (data.schedule_start_hour !== undefined && data.schedule_start_minute !== undefined) {
+        const startH = String(data.schedule_start_hour).padStart(2, '0');
+        const startM = String(data.schedule_start_minute).padStart(2, '0');
+        document.getElementById('schedule-start').value = startH + ':' + startM;
+      }
+      if (data.schedule_end_hour !== undefined && data.schedule_end_minute !== undefined) {
+        const endH = String(data.schedule_end_hour).padStart(2, '0');
+        const endM = String(data.schedule_end_minute).padStart(2, '0');
+        document.getElementById('schedule-end').value = endH + ':' + endM;
+      }
+      if (data.schedule_days !== undefined) {
+        const days = data.schedule_days;
+        document.getElementById('schedule-sun').checked = (days & 1) !== 0;
+        document.getElementById('schedule-mon').checked = (days & 2) !== 0;
+        document.getElementById('schedule-tue').checked = (days & 4) !== 0;
+        document.getElementById('schedule-wed').checked = (days & 8) !== 0;
+        document.getElementById('schedule-thu').checked = (days & 16) !== 0;
+        document.getElementById('schedule-fri').checked = (days & 32) !== 0;
+        document.getElementById('schedule-sat').checked = (days & 64) !== 0;
+      }
+      // Device time display
+      if (data.current_time) {
+        document.getElementById('device-time').textContent = 'Device time: ' + data.current_time;
+      }
+      // Protection settings
+      if (data.overcurrent_protection !== undefined) {
+        document.getElementById('protection-overcurrent').checked = data.overcurrent_protection;
+      }
+      if (data.dryrun_protection !== undefined) {
+        document.getElementById('protection-dryrun').checked = data.dryrun_protection;
       }
     }
 
@@ -2952,6 +3166,15 @@
           const parts = topic.split('/');
           const deviceId = parts[1];
           const data = JSON.parse(message.toString());
+
+          // Handle settings response separately
+          if (data.type === 'settings') {
+            console.log('Received settings from device:', deviceId);
+            if (currentDeviceId === deviceId) {
+              updateDeviceSettings(data);
+            }
+            return;
+          }
 
           // Get previous state before updating
           const previousState = deviceLastData[deviceId]?.state;
