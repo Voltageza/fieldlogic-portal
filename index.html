@@ -450,6 +450,22 @@
       color: var(--text-tertiary);
     }
 
+    /* Time input styling */
+    input[type="time"].form-input {
+      font-size: 24px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      text-align: center;
+      padding: 16px 12px;
+      letter-spacing: 1px;
+    }
+
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+      cursor: pointer;
+      padding: 4px;
+    }
+
     .auth-card .btn {
       width: 100%;
       padding: 14px;
