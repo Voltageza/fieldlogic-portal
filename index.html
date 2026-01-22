@@ -1493,6 +1493,21 @@
         padding: 8px 6px;
       }
     }
+
+    /* Firmware collapsible groups */
+    .firmware-group-header:hover {
+      background: var(--bg-tertiary) !important;
+    }
+    .firmware-category-header:hover {
+      background: var(--bg-secondary) !important;
+    }
+    .firmware-chevron {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+    .firmware-category-content table tr:hover {
+      background: var(--bg-secondary);
+    }
   </style>
 </head>
 <body>
@@ -2024,6 +2039,16 @@
               <option value="PUMP_ESP32S3">ESP32-S3 Pump Controller</option>
               <option value="MOTOR_ESP32">ESP32 Motor Controller</option>
               <option value="SENSOR_ESP8266">ESP8266 Sensor Node</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <select class="form-input" id="firmware-category" required>
+              <option value="Production">Production (Stable)</option>
+              <option value="Beta">Beta (Testing)</option>
+              <option value="Development">Development (Experimental)</option>
+              <option value="Legacy">Legacy (Deprecated)</option>
             </select>
           </div>
 
@@ -3620,6 +3645,7 @@
 
       try {
         const hardwareType = document.getElementById('firmware-hardware-type').value;
+        const category = document.getElementById('firmware-category').value;
         const version = document.getElementById('firmware-version').value;
         const fileInput = document.getElementById('firmware-file');
         const changelog = document.getElementById('firmware-changelog').value;
@@ -3673,6 +3699,7 @@
           .insert({
             hardware_type_id: hardwareTypes.id,
             version: version,
+            category: category,
             file_url: urlData.publicUrl,
             file_size: file.size,
             changelog: changelog || null,
@@ -3696,6 +3723,7 @@
 
         // Reset form
         document.getElementById('firmware-version').value = '';
+        document.getElementById('firmware-category').value = 'Production';
         document.getElementById('firmware-changelog').value = '';
         document.getElementById('firmware-critical').checked = false;
         fileInput.value = '';
@@ -3718,7 +3746,7 @@
       }
     }
 
-    // Load firmware releases
+    // Load firmware releases with grouped collapsible sections
     async function loadFirmwareReleases() {
       const listEl = document.getElementById('firmware-releases-list');
 
@@ -3739,38 +3767,110 @@
           return;
         }
 
-        let html = '<table style="width: 100%; border-collapse: collapse;">';
-        html += '<thead><tr style="border-bottom: 1px solid var(--border-color);">';
-        html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Hardware</th>';
-        html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Version</th>';
-        html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Released</th>';
-        html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Size</th>';
-        html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Critical</th>';
-        html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Actions</th>';
-        html += '</tr></thead><tbody>';
+        // Group by hardware type, then by category
+        const grouped = {};
+        const categoryOrder = ['Production', 'Beta', 'Development', 'Legacy'];
 
         releases.forEach(release => {
-          const releasedDate = new Date(release.released_at).toLocaleDateString();
-          const fileSize = (release.file_size / 1024 / 1024).toFixed(2) + ' MB';
-          const isCritical = release.is_critical ? '🔴 Yes' : '⚪ No';
+          const hwName = release.hardware_types.name;
+          const hwCode = release.hardware_types.type_code;
+          const category = release.category || 'Production';
 
-          html += '<tr style="border-bottom: 1px solid var(--border-light);">';
-          html += '<td style="padding: 12px;">' + release.hardware_types.name + '</td>';
-          html += '<td style="padding: 12px; font-family: monospace;">' + release.version + '</td>';
-          html += '<td style="padding: 12px;">' + releasedDate + '</td>';
-          html += '<td style="padding: 12px;">' + fileSize + '</td>';
-          html += '<td style="padding: 12px;">' + isCritical + '</td>';
-          html += '<td style="padding: 12px;">';
-          html += '<button class="btn btn-secondary btn-small" onclick="showPushUpdateModal(\'' + release.id + '\', \'' + release.hardware_types.type_code + '\', \'' + release.version + '\')">Push Update</button>';
-          html += '</td></tr>';
+          if (!grouped[hwCode]) {
+            grouped[hwCode] = { name: hwName, categories: {} };
+          }
+          if (!grouped[hwCode].categories[category]) {
+            grouped[hwCode].categories[category] = [];
+          }
+          grouped[hwCode].categories[category].push(release);
         });
 
-        html += '</tbody></table>';
+        let html = '';
+
+        Object.keys(grouped).forEach(hwCode => {
+          const hw = grouped[hwCode];
+          const hwId = 'hw-' + hwCode.replace(/[^a-zA-Z0-9]/g, '-');
+
+          // Hardware type header (collapsible)
+          html += '<div class="firmware-group" style="margin-bottom: 16px;">';
+          html += '<div class="firmware-group-header" onclick="toggleFirmwareGroup(\'' + hwId + '\')" style="background: var(--bg-secondary); padding: 12px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px;">';
+          html += '<span class="firmware-chevron" id="chevron-' + hwId + '" style="transition: transform 0.2s;">▼</span>';
+          html += '<strong style="font-size: 16px;">' + hw.name + '</strong>';
+          html += '<span style="color: var(--text-secondary); font-size: 13px; margin-left: auto;">' + hwCode + '</span>';
+          html += '</div>';
+
+          html += '<div class="firmware-group-content" id="' + hwId + '" style="padding-left: 16px; margin-top: 8px;">';
+
+          // Categories within hardware type
+          categoryOrder.forEach(category => {
+            if (!hw.categories[category]) return;
+
+            const catId = hwId + '-' + category.toLowerCase();
+            const catReleases = hw.categories[category];
+            const categoryColors = {
+              'Production': '#22c55e',
+              'Beta': '#f59e0b',
+              'Development': '#3b82f6',
+              'Legacy': '#6b7280'
+            };
+
+            html += '<div class="firmware-category" style="margin-bottom: 12px;">';
+            html += '<div class="firmware-category-header" onclick="toggleFirmwareGroup(\'' + catId + '\')" style="padding: 8px 12px; border-left: 3px solid ' + categoryColors[category] + '; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 0 6px 6px 0;">';
+            html += '<span class="firmware-chevron" id="chevron-' + catId + '" style="transition: transform 0.2s; font-size: 12px;">▼</span>';
+            html += '<span style="font-weight: 500;">' + category + '</span>';
+            html += '<span style="color: var(--text-secondary); font-size: 12px;">(' + catReleases.length + ')</span>';
+            html += '</div>';
+
+            html += '<div class="firmware-category-content" id="' + catId + '" style="margin-top: 8px;">';
+            html += '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">';
+            html += '<thead><tr style="border-bottom: 1px solid var(--border-color);">';
+            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Version</th>';
+            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Released</th>';
+            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Size</th>';
+            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Critical</th>';
+            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Actions</th>';
+            html += '</tr></thead><tbody>';
+
+            catReleases.forEach(release => {
+              const releasedDate = new Date(release.released_at).toLocaleDateString();
+              const fileSize = (release.file_size / 1024 / 1024).toFixed(2) + ' MB';
+              const isCritical = release.is_critical ? '<span style="color: #ef4444;">● Critical</span>' : '<span style="color: var(--text-secondary);">○ Normal</span>';
+
+              html += '<tr style="border-bottom: 1px solid var(--border-light);">';
+              html += '<td style="padding: 8px 12px; font-family: monospace; font-weight: 500;">v' + release.version + '</td>';
+              html += '<td style="padding: 8px 12px;">' + releasedDate + '</td>';
+              html += '<td style="padding: 8px 12px;">' + fileSize + '</td>';
+              html += '<td style="padding: 8px 12px;">' + isCritical + '</td>';
+              html += '<td style="padding: 8px 12px;">';
+              html += '<button class="btn btn-secondary btn-small" onclick="showPushUpdateModal(\'' + release.id + '\', \'' + release.hardware_types.type_code + '\', \'' + release.version + '\')" style="padding: 4px 10px; font-size: 12px;">Push</button>';
+              html += '</td></tr>';
+            });
+
+            html += '</tbody></table>';
+            html += '</div></div>';
+          });
+
+          html += '</div></div>';
+        });
+
         listEl.innerHTML = html;
 
       } catch (error) {
         console.error('Error loading firmware releases:', error);
         listEl.innerHTML = '<p style="color: var(--error);">Error loading firmware releases</p>';
+      }
+    }
+
+    // Toggle firmware group visibility
+    function toggleFirmwareGroup(id) {
+      const content = document.getElementById(id);
+      const chevron = document.getElementById('chevron-' + id);
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        chevron.style.transform = 'rotate(0deg)';
+      } else {
+        content.style.display = 'none';
+        chevron.style.transform = 'rotate(-90deg)';
       }
     }
 
