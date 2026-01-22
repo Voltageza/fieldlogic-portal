@@ -898,6 +898,50 @@
       letter-spacing: 0.3px;
     }
 
+    /* ─────────────── PHASE READINGS ─────────────── */
+    .phase-readings {
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .phase-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .phase-row:last-child {
+      border-bottom: none;
+    }
+
+    .phase-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .phase-value {
+      text-align: center;
+    }
+
+    .phase-value .reading-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -1px;
+    }
+
+    .phase-value .reading-unit {
+      font-size: 14px;
+      color: var(--text-tertiary);
+      margin-left: 2px;
+    }
+
     /* ─────────────── STATE DISPLAY ─────────────── */
     .state-card {
       background: var(--bg-primary);
@@ -1793,41 +1837,45 @@
         <p style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);" id="device-last-seen">Waiting for data...</p>
       </div>
 
-      <div class="readings-grid">
-        <div class="reading-card">
-          <div class="reading-label">Phase A Voltage</div>
-          <div class="reading-value" id="device-voltage-a">--</div>
-          <div class="reading-unit">Volts</div>
+      <div class="phase-readings">
+        <div class="phase-row">
+          <div class="phase-label">Phase A</div>
+          <div class="phase-value">
+            <span class="reading-value" id="device-voltage-a">--</span>
+            <span class="reading-unit">V</span>
+          </div>
+          <div class="phase-value">
+            <span class="reading-value" id="device-current-a">--</span>
+            <span class="reading-unit">A</span>
+          </div>
         </div>
-        <div class="reading-card">
-          <div class="reading-label">Phase B Voltage</div>
-          <div class="reading-value" id="device-voltage-b">--</div>
-          <div class="reading-unit">Volts</div>
+        <div class="phase-row">
+          <div class="phase-label">Phase B</div>
+          <div class="phase-value">
+            <span class="reading-value" id="device-voltage-b">--</span>
+            <span class="reading-unit">V</span>
+          </div>
+          <div class="phase-value">
+            <span class="reading-value" id="device-current-b">--</span>
+            <span class="reading-unit">A</span>
+          </div>
         </div>
-        <div class="reading-card">
-          <div class="reading-label">Phase C Voltage</div>
-          <div class="reading-value" id="device-voltage-c">--</div>
-          <div class="reading-unit">Volts</div>
+        <div class="phase-row">
+          <div class="phase-label">Phase C</div>
+          <div class="phase-value">
+            <span class="reading-value" id="device-voltage-c">--</span>
+            <span class="reading-unit">V</span>
+          </div>
+          <div class="phase-value">
+            <span class="reading-value" id="device-current-c">--</span>
+            <span class="reading-unit">A</span>
+          </div>
         </div>
-        <div class="reading-card">
-          <div class="reading-label">Phase A Current</div>
-          <div class="reading-value" id="device-current-a">--</div>
-          <div class="reading-unit">Amps</div>
-        </div>
-        <div class="reading-card">
-          <div class="reading-label">Phase B Current</div>
-          <div class="reading-value" id="device-current-b">--</div>
-          <div class="reading-unit">Amps</div>
-        </div>
-        <div class="reading-card">
-          <div class="reading-label">Phase C Current</div>
-          <div class="reading-value" id="device-current-c">--</div>
-          <div class="reading-unit">Amps</div>
-        </div>
-        <div class="reading-card">
-          <div class="reading-label">Uptime</div>
-          <div class="reading-value" id="device-uptime" style="font-size: 28px;">--:--:--</div>
-          <div class="reading-unit">HH:MM:SS</div>
+        <div class="phase-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-light);">
+          <div class="phase-label">Uptime</div>
+          <div class="phase-value" style="grid-column: span 2;">
+            <span class="reading-value" id="device-uptime" style="font-size: 24px;">--:--:--</span>
+          </div>
         </div>
       </div>
 
