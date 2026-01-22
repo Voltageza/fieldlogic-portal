@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fieldlogic-v13';
+const CACHE_NAME = 'fieldlogic-v14';
 const ASSETS = [
   './',
   './index.html',

@@ -698,6 +698,24 @@
       letter-spacing: 0.3px;
     }
 
+    .device-readings {
+      display: flex;
+      gap: 16px;
+      text-align: right;
+    }
+
+    .device-reading .value {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .device-reading .unit {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-left: 2px;
+    }
+
     .empty-state {
       text-align: center;
       padding: 60px 20px;
@@ -1464,6 +1482,7 @@
 
       .device-state,
       .device-current,
+      .device-readings,
       .device-item .btn {
         grid-column: 2;
       }
@@ -1775,6 +1794,21 @@
       </div>
 
       <div class="readings-grid">
+        <div class="reading-card">
+          <div class="reading-label">Phase A Voltage</div>
+          <div class="reading-value" id="device-voltage-a">--</div>
+          <div class="reading-unit">Volts</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Phase B Voltage</div>
+          <div class="reading-value" id="device-voltage-b">--</div>
+          <div class="reading-unit">Volts</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Phase C Voltage</div>
+          <div class="reading-value" id="device-voltage-c">--</div>
+          <div class="reading-unit">Volts</div>
+        </div>
         <div class="reading-card">
           <div class="reading-label">Phase A Current</div>
           <div class="reading-value" id="device-current-a">--</div>
@@ -2673,6 +2707,9 @@
           stateClass = 'offline';
         }
 
+        const voltageAvg = isOnline && data.Va !== undefined
+          ? ((data.Va + data.Vb + data.Vc) / 3).toFixed(0)
+          : '--';
         const currentAvg = isOnline && data.Ia !== undefined
           ? ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1)
           : '--';
@@ -2697,9 +2734,15 @@
               ${decommNotice}
             </div>
             <div class="device-state ${stateClass}">${state}</div>
-            <div class="device-current">
-              <span class="value">${currentAvg}</span>
-              <span class="unit">Avg Amps</span>
+            <div class="device-readings">
+              <div class="device-reading">
+                <span class="value">${voltageAvg}</span>
+                <span class="unit">V</span>
+              </div>
+              <div class="device-reading">
+                <span class="value">${currentAvg}</span>
+                <span class="unit">A</span>
+              </div>
             </div>
             <button class="btn btn-secondary btn-small" onclick="viewDevice('${device.device_id}')" ${isDecommissioned ? 'disabled' : ''}>View</button>
           </div>
@@ -2965,6 +3008,11 @@
       document.getElementById('device-state-icon').className = 'state-icon ' + stateClass;
       document.getElementById('device-state-text').className = 'state-text ' + stateClass;
       document.getElementById('device-state-text').textContent = isOnline ? state : '---';
+
+      // Voltages
+      document.getElementById('device-voltage-a').textContent = data.Va !== undefined ? data.Va.toFixed(1) : '--';
+      document.getElementById('device-voltage-b').textContent = data.Vb !== undefined ? data.Vb.toFixed(1) : '--';
+      document.getElementById('device-voltage-c').textContent = data.Vc !== undefined ? data.Vc.toFixed(1) : '--';
 
       // Currents
       document.getElementById('device-current-a').textContent = data.Ia !== undefined ? data.Ia.toFixed(1) : '--';
