@@ -4099,20 +4099,39 @@
     // Load device firmware status
     async function loadDeviceFirmwareStatus() {
       const listEl = document.getElementById('device-firmware-list');
+      listEl.innerHTML = '<p style="color: var(--text-secondary);">Loading devices...</p>';
 
       try {
-        const { data: devices, error } = await supabaseClient
-          .from('devices')
-          .select(`
-            *,
-            hardware_types (type_code, name)
-          `)
-          .order('last_seen', { ascending: false });
+        // Try to get devices with hardware_types join
+        let devices = [];
+        let queryError = null;
 
-        if (error) throw error;
+        // First try the firmware-management schema query
+        const { data: fmDevices, error: fmError } = await supabaseClient
+          .from('devices')
+          .select('device_id, name, firmware_version, status, last_seen, hardware_type_id, hardware_types(type_code, name)')
+          .order('device_id', { ascending: true });
+
+        if (!fmError && fmDevices && fmDevices.length > 0) {
+          devices = fmDevices;
+        } else {
+          // Fallback: try simple query without join
+          const { data: simpleDevices, error: simpleError } = await supabaseClient
+            .from('devices')
+            .select('*')
+            .order('device_id', { ascending: true });
+
+          if (simpleError) {
+            queryError = simpleError;
+          } else {
+            devices = simpleDevices || [];
+          }
+        }
+
+        if (queryError) throw queryError;
 
         if (devices.length === 0) {
-          listEl.innerHTML = '<p style="color: var(--text-secondary);">No devices registered yet.</p>';
+          listEl.innerHTML = '<p style="color: var(--text-secondary);">No devices found. Devices appear here after connecting to MQTT.</p>';
           return;
         }
 
@@ -4129,13 +4148,14 @@
           // Calculate actual online status based on last_seen (15 second threshold)
           const lastSeenTime = device.last_seen ? new Date(device.last_seen).getTime() : 0;
           const isOnline = lastSeenTime && (Date.now() - lastSeenTime < 15000);
-          const actualStatus = isOnline ? 'online' : 'offline';
+          const actualStatus = isOnline ? 'online' : (device.status || 'offline');
           const statusColor = isOnline ? 'var(--success)' : 'var(--text-secondary)';
           const lastSeen = device.last_seen ? new Date(device.last_seen).toLocaleString() : 'Never';
+          const hwName = device.hardware_types ? device.hardware_types.name : 'PUMP_ESP32S3';
 
           html += '<tr style="border-bottom: 1px solid var(--border-light);">';
           html += '<td style="padding: 12px;"><strong>' + device.device_id + '</strong><br><small style="color: var(--text-secondary);">' + (device.name || 'Unnamed') + '</small></td>';
-          html += '<td style="padding: 12px;">' + (device.hardware_types ? device.hardware_types.name : 'Unknown') + '</td>';
+          html += '<td style="padding: 12px;">' + hwName + '</td>';
           html += '<td style="padding: 12px; font-family: monospace;">' + (device.firmware_version || 'Unknown') + '</td>';
           html += '<td style="padding: 12px; color: ' + statusColor + ';">' + actualStatus + '</td>';
           html += '<td style="padding: 12px;">' + lastSeen + '</td>';
@@ -4147,7 +4167,7 @@
 
       } catch (error) {
         console.error('Error loading device firmware status:', error);
-        listEl.innerHTML = '<p style="color: var(--error);">Error loading devices</p>';
+        listEl.innerHTML = '<p style="color: var(--error);">Error: ' + error.message + '</p>';
       }
     }
 
