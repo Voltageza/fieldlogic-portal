@@ -3915,7 +3915,10 @@
       }
     }
 
-    // Load firmware releases with grouped collapsible sections
+    // Store firmware releases globally for selection
+    let firmwareReleasesData = [];
+
+    // Load firmware releases as tree view with details panel
     async function loadFirmwareReleases() {
       const listEl = document.getElementById('firmware-releases-list');
 
@@ -3930,6 +3933,8 @@
           .order('released_at', { ascending: false });
 
         if (error) throw error;
+
+        firmwareReleasesData = releases;
 
         if (releases.length === 0) {
           listEl.innerHTML = '<p style="color: var(--text-secondary);">No firmware releases yet.</p>';
@@ -3954,79 +3959,75 @@
           grouped[hwCode].categories[category].push(release);
         });
 
-        let html = '';
+        // Build tree + details panel layout
+        let html = '<div style="display: flex; gap: 20px; flex-wrap: wrap;">';
+
+        // Tree panel
+        html += '<div class="firmware-tree" style="flex: 1; min-width: 280px; max-width: 400px; background: var(--bg-secondary); border-radius: 8px; padding: 12px; max-height: 400px; overflow-y: auto;">';
 
         Object.keys(grouped).forEach(hwCode => {
           const hw = grouped[hwCode];
           const hwId = 'hw-' + hwCode.replace(/[^a-zA-Z0-9]/g, '-');
 
-          // Hardware type header (collapsible)
-          html += '<div class="firmware-group" style="margin-bottom: 16px;">';
-          html += '<div class="firmware-group-header" onclick="toggleFirmwareGroup(\'' + hwId + '\')" style="background: var(--bg-secondary); padding: 12px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px;">';
-          html += '<span class="firmware-chevron" id="chevron-' + hwId + '" style="transition: transform 0.2s;">▼</span>';
-          html += '<strong style="font-size: 16px;">' + hw.name + '</strong>';
-          html += '<span style="color: var(--text-secondary); font-size: 13px; margin-left: auto;">' + hwCode + '</span>';
+          // Hardware type node
+          html += '<div class="tree-node">';
+          html += '<div class="tree-item tree-parent" onclick="toggleTreeNode(\'' + hwId + '\')" style="display: flex; align-items: center; padding: 6px 8px; cursor: pointer; border-radius: 4px; font-weight: 600;">';
+          html += '<span id="icon-' + hwId + '" style="width: 16px; font-size: 10px; color: var(--text-secondary);">▼</span>';
+          html += '<span style="margin-left: 4px;">📦 ' + hw.name + '</span>';
           html += '</div>';
 
-          html += '<div class="firmware-group-content" id="' + hwId + '" style="padding-left: 16px; margin-top: 8px;">';
+          html += '<div class="tree-children" id="' + hwId + '" style="margin-left: 20px;">';
 
-          // Categories within hardware type
+          // Categories
           categoryOrder.forEach(category => {
             if (!hw.categories[category]) return;
 
             const catId = hwId + '-' + category.toLowerCase();
             const catReleases = hw.categories[category];
-            const categoryColors = {
-              'Production': '#22c55e',
-              'Beta': '#f59e0b',
-              'Development': '#3b82f6',
-              'Legacy': '#6b7280'
-            };
+            const catIcons = { 'Production': '🟢', 'Beta': '🟡', 'Development': '🔵', 'Legacy': '⚫' };
 
-            html += '<div class="firmware-category" style="margin-bottom: 12px;">';
-            html += '<div class="firmware-category-header" onclick="toggleFirmwareGroup(\'' + catId + '\')" style="padding: 8px 12px; border-left: 3px solid ' + categoryColors[category] + '; background: var(--bg-tertiary); cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 0 6px 6px 0;">';
-            html += '<span class="firmware-chevron" id="chevron-' + catId + '" style="transition: transform 0.2s; font-size: 12px;">▼</span>';
-            html += '<span style="font-weight: 500;">' + category + '</span>';
-            html += '<span style="color: var(--text-secondary); font-size: 12px;">(' + catReleases.length + ')</span>';
+            html += '<div class="tree-node">';
+            html += '<div class="tree-item tree-parent" onclick="toggleTreeNode(\'' + catId + '\')" style="display: flex; align-items: center; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-size: 13px;">';
+            html += '<span id="icon-' + catId + '" style="width: 16px; font-size: 10px; color: var(--text-secondary);">▼</span>';
+            html += '<span style="margin-left: 4px;">' + catIcons[category] + ' ' + category + ' (' + catReleases.length + ')</span>';
             html += '</div>';
 
-            html += '<div class="firmware-category-content" id="' + catId + '" style="margin-top: 8px;">';
-            html += '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">';
-            html += '<thead><tr style="border-bottom: 1px solid var(--border-color);">';
-            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Version</th>';
-            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Released</th>';
-            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Size</th>';
-            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Critical</th>';
-            html += '<th style="padding: 8px 12px; text-align: left; font-weight: 600;">Actions</th>';
-            html += '</tr></thead><tbody>';
+            html += '<div class="tree-children" id="' + catId + '" style="margin-left: 20px;">';
 
+            // Version nodes
             catReleases.forEach(release => {
-              const releasedDate = new Date(release.released_at).toLocaleDateString();
-              const fileSize = (release.file_size / 1024 / 1024).toFixed(2) + ' MB';
-              const isCritical = release.is_critical ? '<span style="color: #ef4444;">● Critical</span>' : '<span style="color: var(--text-secondary);">○ Normal</span>';
-
-              html += '<tr style="border-bottom: 1px solid var(--border-light);">';
-              html += '<td style="padding: 8px 12px; font-family: monospace; font-weight: 500;">v' + release.version + '</td>';
-              html += '<td style="padding: 8px 12px;">' + releasedDate + '</td>';
-              html += '<td style="padding: 8px 12px;">' + fileSize + '</td>';
-              html += '<td style="padding: 8px 12px;">' + isCritical + '</td>';
-              html += '<td style="padding: 8px 12px;">';
-              if (isAdmin) {
-                html += '<button class="btn btn-secondary btn-small" onclick="showPushUpdateModal(\'' + release.id + '\', \'' + release.hardware_types.type_code + '\', \'' + release.version + '\')" style="padding: 4px 10px; font-size: 12px;">Push</button>';
-              } else {
-                html += '<span style="color: var(--text-tertiary); font-size: 12px;">Admin only</span>';
-              }
-              html += '</td></tr>';
+              const vId = 'v-' + release.id;
+              html += '<div class="tree-item tree-leaf" id="' + vId + '" onclick="selectFirmwareVersion(\'' + release.id + '\')" style="display: flex; align-items: center; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-size: 13px; font-family: monospace;">';
+              html += '<span style="width: 16px; color: var(--text-tertiary);">└</span>';
+              html += '<span style="margin-left: 4px;">' + (release.is_critical ? '🔴' : '📄') + ' v' + release.version + '</span>';
+              html += '</div>';
             });
 
-            html += '</tbody></table>';
             html += '</div></div>';
           });
 
           html += '</div></div>';
         });
 
+        html += '</div>';
+
+        // Details panel
+        html += '<div class="firmware-details" style="flex: 2; min-width: 300px;">';
+        html += '<div id="firmware-details-content" style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; min-height: 200px;">';
+        html += '<p style="color: var(--text-secondary); text-align: center; margin-top: 60px;">Select a firmware version to view details</p>';
+        html += '</div></div>';
+
+        html += '</div>';
+
         listEl.innerHTML = html;
+
+        // Add hover styles
+        const style = document.createElement('style');
+        style.textContent = '.tree-item:hover { background: var(--bg-tertiary); } .tree-item.selected { background: var(--accent); color: white; }';
+        if (!document.getElementById('firmware-tree-styles')) {
+          style.id = 'firmware-tree-styles';
+          document.head.appendChild(style);
+        }
 
       } catch (error) {
         console.error('Error loading firmware releases:', error);
@@ -4034,18 +4035,66 @@
       }
     }
 
-    // Toggle firmware group visibility
-    function toggleFirmwareGroup(id) {
-      const content = document.getElementById(id);
-      const chevron = document.getElementById('chevron-' + id);
-      if (content.style.display === 'none') {
-        content.style.display = 'block';
-        chevron.style.transform = 'rotate(0deg)';
+    // Toggle tree node expand/collapse
+    function toggleTreeNode(id) {
+      const children = document.getElementById(id);
+      const icon = document.getElementById('icon-' + id);
+      if (children.style.display === 'none') {
+        children.style.display = 'block';
+        icon.textContent = '▼';
       } else {
-        content.style.display = 'none';
-        chevron.style.transform = 'rotate(-90deg)';
+        children.style.display = 'none';
+        icon.textContent = '▶';
       }
     }
+
+    // Select firmware version and show details
+    function selectFirmwareVersion(releaseId) {
+      // Remove previous selection
+      document.querySelectorAll('.tree-leaf.selected').forEach(el => el.classList.remove('selected'));
+
+      // Add selection to clicked item
+      const vEl = document.getElementById('v-' + releaseId);
+      if (vEl) vEl.classList.add('selected');
+
+      // Find release data
+      const release = firmwareReleasesData.find(r => r.id === releaseId);
+      if (!release) return;
+
+      const detailsEl = document.getElementById('firmware-details-content');
+      const releasedDate = new Date(release.released_at).toLocaleDateString();
+      const fileSize = release.file_size ? (release.file_size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown';
+
+      let html = '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">';
+      html += '<div>';
+      html += '<h3 style="margin: 0 0 4px 0; font-family: monospace;">v' + release.version + '</h3>';
+      html += '<span style="color: var(--text-secondary); font-size: 13px;">' + release.hardware_types.name + '</span>';
+      html += '</div>';
+      html += '<div style="text-align: right;">';
+      if (release.is_critical) {
+        html += '<span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">CRITICAL</span>';
+      }
+      html += '</div></div>';
+
+      html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px;">';
+      html += '<div style="background: var(--bg-tertiary); padding: 10px; border-radius: 6px;"><div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Released</div><div style="font-weight: 500;">' + releasedDate + '</div></div>';
+      html += '<div style="background: var(--bg-tertiary); padding: 10px; border-radius: 6px;"><div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Size</div><div style="font-weight: 500;">' + fileSize + '</div></div>';
+      html += '<div style="background: var(--bg-tertiary); padding: 10px; border-radius: 6px;"><div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Category</div><div style="font-weight: 500;">' + (release.category || 'Production') + '</div></div>';
+      html += '</div>';
+
+      html += '<div style="margin-bottom: 16px;">';
+      html += '<div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">Changelog</div>';
+      html += '<div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">';
+      html += release.changelog || '<span style="color: var(--text-tertiary);">No changelog provided</span>';
+      html += '</div></div>';
+
+      if (isAdmin) {
+        html += '<button class="btn btn-primary" onclick="showPushUpdateModal(\'' + release.id + '\', \'' + release.hardware_types.type_code + '\', \'' + release.version + '\')" style="width: 100%;">Push to Devices</button>';
+      }
+
+      detailsEl.innerHTML = html;
+    }
+
 
     // Load device firmware status
     async function loadDeviceFirmwareStatus() {
