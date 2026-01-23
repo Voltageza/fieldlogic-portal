@@ -2951,20 +2951,20 @@
 
     async function handleRemoveFromRegistry(deviceId) {
       try {
-        // Check how many users have this device registered
-        const { data: userDevices, error: countError } = await supabaseClient
+        // Check if device exists in devices table
+        const { data: deviceEntry, error: checkError } = await supabaseClient
           .from('devices')
-          .select('id, user_id')
-          .eq('device_id', deviceId);
+          .select('device_id')
+          .eq('device_id', deviceId)
+          .maybeSingle();
 
-        if (countError) throw countError;
-
-        const userCount = userDevices ? userDevices.length : 0;
+        // Device might not exist in devices table yet (just in registry)
+        const deviceExists = deviceEntry && !checkError;
 
         let confirmMsg = 'Remove ' + deviceId + ' from registry?';
-        if (userCount > 0) {
-          confirmMsg = 'WARNING: ' + deviceId + ' is registered by ' + userCount + ' user(s).\n\n' +
-            'Removing will mark their device as DECOMMISSIONED.\n\n' +
+        if (deviceExists) {
+          confirmMsg = 'WARNING: ' + deviceId + ' exists in the devices table.\n\n' +
+            'This will also remove the device record.\n\n' +
             'Continue?';
         }
 
@@ -2972,17 +2972,14 @@
           return;
         }
 
-        // Mark all user devices as decommissioned
-        if (userCount > 0) {
-          const { error: decommError } = await supabaseClient
+        // Remove from devices table if it exists
+        if (deviceExists) {
+          const { error: deleteDeviceError } = await supabaseClient
             .from('devices')
-            .update({
-              decommissioned: true,
-              decommissioned_at: new Date().toISOString()
-            })
+            .delete()
             .eq('device_id', deviceId);
 
-          if (decommError) throw decommError;
+          if (deleteDeviceError) throw deleteDeviceError;
         }
 
         // Remove from registry
@@ -2995,8 +2992,8 @@
 
         await loadRegistry();
 
-        if (userCount > 0) {
-          alert('Device decommissioned. ' + userCount + ' user(s) will see their device marked as decommissioned.');
+        if (deviceExists) {
+          alert('Device removed from registry and devices table.');
         }
       } catch (error) {
         alert('Error removing device: ' + error.message);
