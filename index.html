@@ -2122,8 +2122,8 @@
       <div id="firmware-error" class="alert alert-error" style="display: none;"></div>
       <div id="firmware-success" class="alert alert-success" style="display: none;"></div>
 
-      <!-- Upload New Firmware -->
-      <div class="settings-card">
+      <!-- Upload New Firmware (Admin Only) -->
+      <div class="settings-card" id="firmware-upload-section">
         <h3>Upload New Firmware</h3>
         <p style="color: var(--text-secondary); margin-bottom: 20px;">
           Upload firmware .bin files for different hardware types. Files will be stored securely in the cloud.
@@ -3755,6 +3755,13 @@
       firmwareError.style.display = 'none';
       firmwareSuccess.style.display = 'none';
 
+      // Admin check
+      if (!isAdmin) {
+        firmwareError.textContent = 'Access denied. Only administrators can upload firmware.';
+        firmwareError.style.display = 'block';
+        return;
+      }
+
       try {
         const hardwareType = document.getElementById('firmware-hardware-type').value;
         const category = document.getElementById('firmware-category').value;
@@ -3954,7 +3961,11 @@
               html += '<td style="padding: 8px 12px;">' + fileSize + '</td>';
               html += '<td style="padding: 8px 12px;">' + isCritical + '</td>';
               html += '<td style="padding: 8px 12px;">';
-              html += '<button class="btn btn-secondary btn-small" onclick="showPushUpdateModal(\'' + release.id + '\', \'' + release.hardware_types.type_code + '\', \'' + release.version + '\')" style="padding: 4px 10px; font-size: 12px;">Push</button>';
+              if (isAdmin) {
+                html += '<button class="btn btn-secondary btn-small" onclick="showPushUpdateModal(\'' + release.id + '\', \'' + release.hardware_types.type_code + '\', \'' + release.version + '\')" style="padding: 4px 10px; font-size: 12px;">Push</button>';
+              } else {
+                html += '<span style="color: var(--text-tertiary); font-size: 12px;">Admin only</span>';
+              }
               html += '</td></tr>';
             });
 
@@ -4049,6 +4060,12 @@
 
     // Show push update modal with device selection
     async function showPushUpdateModal(releaseId, hardwareType, version) {
+      // Admin check
+      if (!isAdmin) {
+        alert('Access denied. Only administrators can push firmware updates.');
+        return;
+      }
+
       pendingPushReleaseId = releaseId;
       pendingPushHardwareType = hardwareType;
       pendingPushVersion = version;
@@ -4516,6 +4533,8 @@
 
       if (pageId === 'firmware') {
         document.getElementById('firmware-user-email').textContent = currentUser ? currentUser.email : '';
+        // Hide upload section for non-admins
+        document.getElementById('firmware-upload-section').style.display = isAdmin ? 'block' : 'none';
         loadFirmwareReleases();
         loadDeviceFirmwareStatus();
       }
