@@ -1962,33 +1962,23 @@
       <div class="settings-card" style="margin-top: 20px;">
         <h3>Ruraflex (Eskom TOU)</h3>
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Eskom time-of-use schedule. Disables custom schedule when enabled.
+          Eskom time-of-use schedule. Runs pump during OFF-PEAK hours only.
         </p>
         <div class="device-pref-item">
           <div>
             <strong>Enable Ruraflex</strong>
-            <p style="font-size: 12px; color: var(--text-secondary);">Auto schedule based on Eskom TOU</p>
+            <p style="font-size: 12px; color: var(--text-secondary);">Off-peak hours only (cheapest rates)</p>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="ruraflex-enabled" onchange="toggleRuraflex()">
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div id="ruraflex-options" style="margin-top: 16px; display: none;">
-          <div class="form-group">
-            <label>Preset</label>
-            <select class="form-input" id="ruraflex-preset" onchange="saveRuraflex()">
-              <option value="0">High Demand - Avoid Peak Only</option>
-              <option value="1">Low Demand - Off-Peak Only</option>
-            </select>
-          </div>
-          <div style="margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 12px;">
-            <div id="ruraflex-info">
-              <strong style="color: var(--accent);">High Demand:</strong> Runs during Standard + Off-Peak hours.<br>
-              Blocks: 06:00-08:00 &amp; 17:00-20:00 (winter weekdays)<br>
-              Blocks: 07:00-09:00 &amp; 17:00-20:00 (summer weekdays)
-            </div>
-          </div>
+        <div id="ruraflex-info" style="margin-top: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 12px; display: none;">
+          <strong style="color: var(--accent);">Off-Peak Hours:</strong><br>
+          <strong>Weekdays:</strong> 22:00 - 06:00<br>
+          <strong>Weekends:</strong> All day except 07:00-12:00 &amp; 18:00-20:00<br>
+          <span style="color: var(--text-secondary);">Season auto-detected (Jun-Aug = High Demand, Sep-May = Low Demand)</span>
         </div>
       </div>
 
@@ -3202,36 +3192,16 @@
     // ============================================
     function toggleRuraflex() {
       const enabled = document.getElementById('ruraflex-enabled').checked;
-      document.getElementById('ruraflex-options').style.display = enabled ? 'block' : 'none';
+      document.getElementById('ruraflex-info').style.display = enabled ? 'block' : 'none';
 
       // Disable custom schedule when Ruraflex is enabled
       if (enabled) {
         document.getElementById('schedule-enabled').checked = false;
       }
 
-      saveRuraflex();
-    }
-
-    function saveRuraflex() {
-      const enabled = document.getElementById('ruraflex-enabled').checked;
-      const preset = parseInt(document.getElementById('ruraflex-preset').value);
-
-      // Update info text based on preset
-      const infoEl = document.getElementById('ruraflex-info');
-      if (preset === 0) {
-        infoEl.innerHTML = '<strong style="color: var(--accent);">High Demand:</strong> Runs during Standard + Off-Peak hours.<br>' +
-          'Blocks: 06:00-08:00 &amp; 17:00-20:00 (winter weekdays)<br>' +
-          'Blocks: 07:00-09:00 &amp; 17:00-20:00 (summer weekdays)';
-      } else {
-        infoEl.innerHTML = '<strong style="color: var(--accent);">Low Demand:</strong> Runs during Off-Peak hours only (cheapest).<br>' +
-          'Runs: 22:00-06:00 weekdays<br>' +
-          'Runs: Weekends (except 07:00-12:00 &amp; 18:00-20:00)';
-      }
-
       const cmd = JSON.stringify({
         command: 'SET_RURAFLEX',
-        enabled: enabled,
-        preset: preset
+        enabled: enabled
       });
 
       if (mqttClient && mqttClient.connected && currentDeviceId) {
@@ -3294,21 +3264,7 @@
       // Ruraflex settings
       if (data.ruraflex_enabled !== undefined) {
         document.getElementById('ruraflex-enabled').checked = data.ruraflex_enabled;
-        document.getElementById('ruraflex-options').style.display = data.ruraflex_enabled ? 'block' : 'none';
-      }
-      if (data.ruraflex_preset !== undefined) {
-        document.getElementById('ruraflex-preset').value = data.ruraflex_preset;
-        // Update info text
-        const infoEl = document.getElementById('ruraflex-info');
-        if (data.ruraflex_preset === 0) {
-          infoEl.innerHTML = '<strong style="color: var(--accent);">High Demand:</strong> Runs during Standard + Off-Peak hours.<br>' +
-            'Blocks: 06:00-08:00 &amp; 17:00-20:00 (winter weekdays)<br>' +
-            'Blocks: 07:00-09:00 &amp; 17:00-20:00 (summer weekdays)';
-        } else {
-          infoEl.innerHTML = '<strong style="color: var(--accent);">Low Demand:</strong> Runs during Off-Peak hours only (cheapest).<br>' +
-            'Runs: 22:00-06:00 weekdays<br>' +
-            'Runs: Weekends (except 07:00-12:00 &amp; 18:00-20:00)';
-        }
+        document.getElementById('ruraflex-info').style.display = data.ruraflex_enabled ? 'block' : 'none';
       }
       // Protection settings
       if (data.overcurrent_protection !== undefined) {
