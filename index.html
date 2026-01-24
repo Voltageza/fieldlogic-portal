@@ -2463,6 +2463,22 @@
     </div>
   </div>
 
+  <!-- User Devices Modal -->
+  <div class="modal-overlay" id="user-devices-modal">
+    <div class="modal" style="max-width: 600px;">
+      <h2>Devices for <span id="user-devices-name"></span></h2>
+      <p>View all devices registered to this user.</p>
+
+      <div id="user-devices-list" style="max-height: 400px; overflow-y: auto;">
+        <p style="color: var(--text-secondary);">Loading devices...</p>
+      </div>
+
+      <div class="modal-buttons" style="margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="hideModal('user-devices-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin Create User Modal -->
   <div class="modal-overlay" id="create-user-modal">
     <div class="modal">
@@ -4501,13 +4517,14 @@
 
         // Build table
         let html = '<table class="user-table"><thead><tr>';
-        html += '<th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th>';
+        html += '<th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Devices</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
 
         users.forEach(user => {
           const isCurrentUser = user.id === currentUser.id;
           const isActive = user.is_active !== false;
           const joinDate = new Date(user.created_at).toLocaleDateString();
+          const userName = user.full_name || user.email;
 
           html += '<tr>';
           html += '<td>' + (user.full_name || '<em>Not set</em>') + '</td>';
@@ -4515,6 +4532,7 @@
           html += '<td><span class="user-role-badge ' + (user.is_admin ? 'admin' : 'user') + '">' + (user.is_admin ? 'Admin' : 'User') + '</span></td>';
           html += '<td><span class="' + (isActive ? 'user-status-active' : 'user-status-inactive') + '">' + (isActive ? 'Active' : 'Inactive') + '</span></td>';
           html += '<td>' + joinDate + '</td>';
+          html += '<td><button class="btn btn-small btn-secondary" onclick="showUserDevicesModal(\'' + user.id + '\', \'' + userName.replace(/'/g, "\\'") + '\')">View Devices</button></td>';
           html += '<td class="user-actions">';
 
           if (isCurrentUser) {
@@ -4545,6 +4563,77 @@
         errorEl.textContent = 'Error loading users: ' + error.message;
         errorEl.style.display = 'block';
         listEl.innerHTML = '';
+      }
+    }
+
+    async function showUserDevicesModal(userId, userName) {
+      document.getElementById('user-devices-name').textContent = userName;
+      document.getElementById('user-devices-list').innerHTML = '<p style="color: var(--text-secondary);">Loading devices...</p>';
+      showModal('user-devices-modal');
+
+      try {
+        const { data: userDevices, error } = await supabaseClient
+          .from('devices')
+          .select('device_id, name, last_seen, firmware_version, decommissioned, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const listEl = document.getElementById('user-devices-list');
+
+        if (!userDevices || userDevices.length === 0) {
+          listEl.innerHTML = '<p style="color: var(--text-secondary);">No devices registered to this user.</p>';
+          return;
+        }
+
+        let html = '<table class="user-table" style="width: 100%;"><thead><tr>';
+        html += '<th>Device ID</th><th>Name</th><th>Status</th><th>Firmware</th><th>Last Seen</th>';
+        html += '</tr></thead><tbody>';
+
+        userDevices.forEach(device => {
+          const isDecommissioned = device.decommissioned === true;
+          const lastSeenDate = device.last_seen ? new Date(device.last_seen) : null;
+          const secondsAgo = lastSeenDate ? Math.floor((Date.now() - lastSeenDate.getTime()) / 1000) : null;
+          const isOnline = !isDecommissioned && secondsAgo !== null && secondsAgo < 60;
+
+          let statusBadge = '';
+          if (isDecommissioned) {
+            statusBadge = '<span class="status-badge" style="background: var(--text-tertiary);">Decommissioned</span>';
+          } else if (isOnline) {
+            statusBadge = '<span class="status-badge online">Online</span>';
+          } else {
+            statusBadge = '<span class="status-badge offline">Offline</span>';
+          }
+
+          let lastSeenText = '---';
+          if (lastSeenDate) {
+            if (secondsAgo < 60) {
+              lastSeenText = secondsAgo + 's ago';
+            } else if (secondsAgo < 3600) {
+              lastSeenText = Math.floor(secondsAgo / 60) + 'm ago';
+            } else if (secondsAgo < 86400) {
+              lastSeenText = Math.floor(secondsAgo / 3600) + 'h ago';
+            } else {
+              lastSeenText = lastSeenDate.toLocaleDateString();
+            }
+          }
+
+          html += '<tr>';
+          html += '<td style="font-family: monospace;">' + device.device_id + '</td>';
+          html += '<td>' + (device.name || '<em>Not named</em>') + '</td>';
+          html += '<td>' + statusBadge + '</td>';
+          html += '<td>' + (device.firmware_version || '---') + '</td>';
+          html += '<td>' + lastSeenText + '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        listEl.innerHTML = html;
+
+      } catch (error) {
+        console.error('Error loading user devices:', error);
+        document.getElementById('user-devices-list').innerHTML = '<p style="color: var(--danger);">Error loading devices: ' + error.message + '</p>';
       }
     }
 
