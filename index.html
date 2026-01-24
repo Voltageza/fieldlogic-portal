@@ -2336,9 +2336,23 @@
   <div class="modal-overlay" id="add-device-modal">
     <div class="modal">
       <h2>Add New Device</h2>
-      <p>Enter the Device ID found on your FieldLink controller or in the serial output.</p>
+      <p>Scan the QR code on your device or enter the Device ID manually.</p>
 
       <div id="add-device-error" class="alert alert-error" style="display: none;"></div>
+
+      <!-- QR Scanner Section -->
+      <div id="qr-scanner-section" style="margin-bottom: 15px;">
+        <button type="button" class="btn btn-secondary" id="qr-scan-btn" onclick="toggleQRScanner()" style="width: 100%; margin-bottom: 10px;">
+          <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 11h2v2H3v-2zm0-4h2v2H3V7zm4 0h2v2H7V7zm0 4h2v2H7v-2zm-4 4h2v2H3v-2zm4 0h2v2H7v-2zm12-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zM3 3h6v2H5v4H3V3zm18 0v6h-2V5h-4V3h6zM3 21v-6h2v4h4v2H3zm18 0h-6v-2h4v-4h2v6z"/>
+          </svg>
+          Scan QR Code
+        </button>
+        <div id="qr-reader" style="display: none; width: 100%; border-radius: 8px; overflow: hidden; margin-bottom: 10px;"></div>
+        <div id="qr-status" style="display: none; text-align: center; padding: 8px; color: var(--text-secondary); font-size: 12px;"></div>
+      </div>
+
+      <div style="text-align: center; color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">— OR —</div>
 
       <form onsubmit="handleAddDevice(event)">
         <div class="form-group">
@@ -2488,6 +2502,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="config.js"></script>
   <script>
     // ============================================
@@ -2845,8 +2860,110 @@
       document.getElementById('add-device-id').value = '';
       document.getElementById('add-device-name').value = '';
       document.getElementById('add-device-error').style.display = 'none';
+      // Reset QR scanner state
+      document.getElementById('qr-reader').style.display = 'none';
+      document.getElementById('qr-status').style.display = 'none';
+      document.getElementById('qr-scan-btn').innerHTML = '<svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24"><path d="M3 11h2v2H3v-2zm0-4h2v2H3V7zm4 0h2v2H7V7zm0 4h2v2H7v-2zm-4 4h2v2H3v-2zm4 0h2v2H7v-2zm12-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zM3 3h6v2H5v4H3V3zm18 0v6h-2V5h-4V3h6zM3 21v-6h2v4h4v2H3zm18 0h-6v-2h4v-4h2v6z"/></svg>Scan QR Code';
+      if (window.html5QrCode) {
+        window.html5QrCode.stop().catch(() => {});
+      }
       showModal('add-device-modal');
     }
+
+    // QR Code Scanner
+    let html5QrCode = null;
+    let qrScannerActive = false;
+
+    async function toggleQRScanner() {
+      const readerEl = document.getElementById('qr-reader');
+      const statusEl = document.getElementById('qr-status');
+      const btnEl = document.getElementById('qr-scan-btn');
+
+      if (qrScannerActive) {
+        // Stop scanner
+        if (html5QrCode) {
+          await html5QrCode.stop().catch(() => {});
+        }
+        readerEl.style.display = 'none';
+        statusEl.style.display = 'none';
+        btnEl.innerHTML = '<svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24"><path d="M3 11h2v2H3v-2zm0-4h2v2H3V7zm4 0h2v2H7V7zm0 4h2v2H7v-2zm-4 4h2v2H3v-2zm4 0h2v2H7v-2zm12-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zM3 3h6v2H5v4H3V3zm18 0v6h-2V5h-4V3h6zM3 21v-6h2v4h4v2H3zm18 0h-6v-2h4v-4h2v6z"/></svg>Scan QR Code';
+        qrScannerActive = false;
+        return;
+      }
+
+      // Start scanner
+      readerEl.style.display = 'block';
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'Initializing camera...';
+      btnEl.innerHTML = '<svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Stop Scanning';
+      qrScannerActive = true;
+
+      try {
+        if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode('qr-reader');
+        }
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 200, height: 200 },
+            aspectRatio: 1.0
+          },
+          (decodedText) => {
+            // QR code scanned successfully
+            let deviceId = decodedText.trim().toUpperCase();
+
+            // Extract device ID if it's a URL or has extra text
+            const match = deviceId.match(/FL-[A-F0-9]{6}/i);
+            if (match) {
+              deviceId = match[0].toUpperCase();
+            }
+
+            document.getElementById('add-device-id').value = deviceId;
+            statusEl.style.color = 'var(--success)';
+            statusEl.textContent = 'Device ID detected: ' + deviceId;
+
+            // Stop scanner after successful scan
+            html5QrCode.stop().then(() => {
+              qrScannerActive = false;
+              readerEl.style.display = 'none';
+              btnEl.innerHTML = '<svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>QR Scanned';
+              btnEl.style.color = 'var(--success)';
+              setTimeout(() => {
+                statusEl.style.display = 'none';
+                btnEl.style.color = '';
+                btnEl.innerHTML = '<svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24"><path d="M3 11h2v2H3v-2zm0-4h2v2H3V7zm4 0h2v2H7V7zm0 4h2v2H7v-2zm-4 4h2v2H3v-2zm4 0h2v2H7v-2zm12-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zM3 3h6v2H5v4H3V3zm18 0v6h-2V5h-4V3h6zM3 21v-6h2v4h4v2H3zm18 0h-6v-2h4v-4h2v6z"/></svg>Scan QR Code';
+              }, 2000);
+            });
+          },
+          (errorMessage) => {
+            // Scan error - ignore, keep scanning
+          }
+        );
+
+        statusEl.style.color = 'var(--text-secondary)';
+        statusEl.textContent = 'Point camera at the QR code on your device';
+
+      } catch (err) {
+        console.error('QR Scanner error:', err);
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = 'Camera access denied or not available';
+        qrScannerActive = false;
+        readerEl.style.display = 'none';
+        btnEl.innerHTML = '<svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" fill="currentColor" viewBox="0 0 24 24"><path d="M3 11h2v2H3v-2zm0-4h2v2H3V7zm4 0h2v2H7V7zm0 4h2v2H7v-2zm-4 4h2v2H3v-2zm4 0h2v2H7v-2zm12-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4-8h2v2h-2V7zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zM3 3h6v2H5v4H3V3zm18 0v6h-2V5h-4V3h6zM3 21v-6h2v4h4v2H3zm18 0h-6v-2h4v-4h2v6z"/></svg>Scan QR Code';
+      }
+    }
+
+    // Stop QR scanner when modal is closed
+    const originalHideModal = hideModal;
+    hideModal = function(id) {
+      if (id === 'add-device-modal' && html5QrCode && qrScannerActive) {
+        html5QrCode.stop().catch(() => {});
+        qrScannerActive = false;
+      }
+      originalHideModal(id);
+    };
 
     async function handleAddDevice(e) {
       e.preventDefault();
