@@ -2072,11 +2072,9 @@
         <div>
           <h1 id="dashboard-title">My Devices</h1>
           <div id="admin-toggle" class="admin-nav">
-            <button class="btn btn-small btn-tab active" id="btn-all-devices" onclick="setAdminView(true)">All Devices</button>
-            <button class="btn btn-small btn-tab" id="btn-my-devices" onclick="setAdminView(false)">My Devices</button>
+            <button class="btn btn-small btn-tab" id="btn-fleet" onclick="showPage('fleet')">Fleet</button>
             <button class="btn btn-small btn-tab" id="btn-registry" onclick="showRegistryModal()">Registry</button>
             <button class="btn btn-small btn-tab" id="btn-users" onclick="showPage('users')">Users</button>
-            <button class="btn btn-small btn-tab" id="btn-fleet" onclick="showPage('fleet')">Fleet</button>
           </div>
         </div>
         <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
