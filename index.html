@@ -2919,6 +2919,29 @@
     </div>
   </div>
 
+  <!-- Admin Edit User Modal -->
+  <div class="modal-overlay" id="edit-user-modal">
+    <div class="modal">
+      <h2>Edit User</h2>
+      <p id="edit-user-email-display" style="color: var(--text-secondary); margin-bottom: 20px;"></p>
+
+      <div id="edit-user-error" class="alert alert-error" style="display: none;"></div>
+      <div id="edit-user-success" class="alert alert-success" style="display: none;"></div>
+
+      <form onsubmit="handleEditUser(event)">
+        <input type="hidden" id="edit-user-id">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" class="form-input" id="edit-user-name" placeholder="Enter full name">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="hideModal('edit-user-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-edit-user">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -4946,8 +4969,9 @@
           html += '<td><button class="btn btn-small btn-secondary" onclick="showUserDevicesModal(\'' + user.id + '\', \'' + userName.replace(/'/g, "\\'") + '\')">View Devices</button></td>';
           html += '<td class="user-actions">';
 
+          html += '<button class="btn btn-small btn-secondary" onclick="showEditUserModal(\'' + user.id + '\', \'' + (user.full_name || '').replace(/'/g, "\\'") + '\', \'' + user.email + '\')">Edit</button>';
           if (isCurrentUser) {
-            html += '<span style="color: var(--text-tertiary); font-size: 12px;">Current user</span>';
+            html += '<span style="color: var(--text-tertiary); font-size: 12px; margin-left: 8px;">Current user</span>';
           } else {
             if (user.is_admin) {
               html += '<button class="btn btn-small btn-secondary" onclick="toggleUserAdmin(\'' + user.id + '\', false)">Demote</button>';
@@ -5107,6 +5131,59 @@
       document.getElementById('reset-password-confirm').value = '';
       document.getElementById('reset-password-error').style.display = 'none';
       showModal('reset-password-modal');
+    }
+
+    function showEditUserModal(userId, fullName, userEmail) {
+      document.getElementById('edit-user-id').value = userId;
+      document.getElementById('edit-user-email-display').textContent = userEmail;
+      document.getElementById('edit-user-name').value = fullName || '';
+      document.getElementById('edit-user-error').style.display = 'none';
+      document.getElementById('edit-user-success').style.display = 'none';
+      showModal('edit-user-modal');
+    }
+
+    async function handleEditUser(e) {
+      e.preventDefault();
+
+      const userId = document.getElementById('edit-user-id').value;
+      const fullName = document.getElementById('edit-user-name').value.trim();
+      const errorEl = document.getElementById('edit-user-error');
+      const successEl = document.getElementById('edit-user-success');
+      const btn = document.getElementById('btn-edit-user');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        const { error } = await supabaseClient
+          .from('user_profiles')
+          .update({ full_name: fullName || null, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+
+        if (error) throw error;
+
+        successEl.textContent = 'User updated successfully.';
+        successEl.style.display = 'block';
+
+        // Refresh user list
+        loadAllUsers();
+
+        // Close modal after brief delay
+        setTimeout(() => {
+          hideModal('edit-user-modal');
+        }, 1000);
+
+      } catch (error) {
+        console.error('Error updating user:', error);
+        errorEl.textContent = 'Error updating user: ' + error.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
     }
 
     async function handleAdminResetPassword(e) {
