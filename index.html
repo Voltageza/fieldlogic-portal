@@ -5269,7 +5269,6 @@
         const { data, error } = await supabaseClient
           .from('devices')
           .select('*, user_profiles(email, full_name)')
-          .eq('decommissioned', false)
           .order('name', { ascending: true });
 
         if (error) throw error;
