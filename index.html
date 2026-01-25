@@ -5320,7 +5320,7 @@
         const search = fleetSearchFilter.toLowerCase();
         const name = (d.name || '').toLowerCase();
         const id = (d.device_id || '').toLowerCase();
-        const owner = d.user_profiles ? (d.user_profiles.email || '').toLowerCase() : '';
+        const owner = d.user_profiles ? (d.user_profiles.full_name || d.user_profiles.email || '').toLowerCase() : '';
         return name.includes(search) || id.includes(search) || owner.includes(search);
       });
 
@@ -5338,14 +5338,14 @@
         if (isFault) statusClass = 'fault';
         else if (isOnline) statusClass = 'online';
 
-        const ownerEmail = device.user_profiles ? device.user_profiles.email : 'Unassigned';
+        const ownerName = device.user_profiles ? (device.user_profiles.full_name || device.user_profiles.email) : 'Unassigned';
         const isSelected = selectedFleetDeviceId === device.device_id;
 
         return '<div class="fleet-device-item' + (isSelected ? ' selected' : '') + '" onclick="selectFleetDevice(\'' + device.device_id + '\')">' +
           '<div class="fleet-device-dot ' + statusClass + '"></div>' +
           '<div class="fleet-device-info">' +
             '<div class="fleet-device-name">' + (device.name || device.device_id) + '</div>' +
-            '<div class="fleet-device-owner">' + ownerEmail + '</div>' +
+            '<div class="fleet-device-owner">' + ownerName + '</div>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -5360,7 +5360,7 @@
         const search = fleetSearchFilter.toLowerCase();
         const name = (d.name || '').toLowerCase();
         const id = (d.device_id || '').toLowerCase();
-        const owner = d.user_profiles ? (d.user_profiles.email || '').toLowerCase() : '';
+        const owner = d.user_profiles ? (d.user_profiles.full_name || d.user_profiles.email || '').toLowerCase() : '';
         return name.includes(search) || id.includes(search) || owner.includes(search);
       });
 
@@ -5390,7 +5390,7 @@
         let stateClass = state.toLowerCase();
 
         // Owner
-        const ownerEmail = device.user_profiles ? device.user_profiles.email : 'Unassigned';
+        const ownerName = device.user_profiles ? (device.user_profiles.full_name || device.user_profiles.email) : 'Unassigned';
 
         // Voltage
         let voltageHtml = '<span class="fleet-reading-cell">--</span>';
@@ -5418,7 +5418,7 @@
 
         return '<tr class="' + (isSelected ? 'selected' : '') + '" onclick="handleFleetRowClick(\'' + device.device_id + '\')" data-device-id="' + device.device_id + '">' +
           '<td><div class="fleet-device-cell"><span class="name">' + (device.name || 'Unnamed') + '</span><span class="id">' + device.device_id + '</span></div></td>' +
-          '<td>' + ownerEmail + '</td>' +
+          '<td>' + ownerName + '</td>' +
           '<td><span class="fleet-status-badge ' + statusClass + '">' + statusText + '</span></td>' +
           '<td>' + voltageHtml + '</td>' +
           '<td>' + currentHtml + '</td>' +
