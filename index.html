@@ -5266,10 +5266,29 @@
 
       try {
         // Fetch all devices with owner info
+        // Note: user_profiles join requires foreign key relationship
         const { data, error } = await supabaseClient
           .from('devices')
-          .select('*, user_profiles(email, full_name)')
+          .select('*')
           .order('name', { ascending: true });
+
+        // Fetch user profiles separately for owner info
+        if (data && data.length > 0) {
+          const userIds = [...new Set(data.map(d => d.user_id))];
+          const { data: profiles } = await supabaseClient
+            .from('user_profiles')
+            .select('id, email, full_name')
+            .in('id', userIds);
+
+          // Map profiles to devices
+          const profileMap = {};
+          if (profiles) {
+            profiles.forEach(p => profileMap[p.id] = p);
+          }
+          data.forEach(d => {
+            d.user_profiles = profileMap[d.user_id] || null;
+          });
+        }
 
         if (error) throw error;
 
