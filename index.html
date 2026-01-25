@@ -4574,7 +4574,7 @@
       try {
         const { data: userDevices, error } = await supabaseClient
           .from('devices')
-          .select('device_id, name, last_seen, firmware_version, decommissioned, created_at')
+          .select('device_id, name, last_seen, firmware_version, created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
