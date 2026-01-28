@@ -1346,6 +1346,7 @@
     .fleet-device-dot.online { background: var(--success); }
     .fleet-device-dot.offline { background: var(--text-tertiary); }
     .fleet-device-dot.fault { background: var(--danger); }
+    .fleet-device-dot.pending { background: var(--warning); }
 
     .fleet-device-info {
       flex: 1;
@@ -1459,6 +1460,11 @@
       color: var(--danger);
     }
 
+    .fleet-status-badge.pending {
+      background: rgba(255, 204, 0, 0.15);
+      color: var(--warning);
+    }
+
     .fleet-state-badge {
       display: inline-block;
       padding: 4px 10px;
@@ -1486,6 +1492,12 @@
     .fleet-state-badge.offline {
       background: var(--text-tertiary);
       color: white;
+    }
+
+    .fleet-state-badge.pending,
+    .fleet-state-badge.-- {
+      background: transparent;
+      color: var(--text-tertiary);
     }
 
     .fleet-reading-cell {
@@ -2073,7 +2085,6 @@
           <h1 id="dashboard-title">My Devices</h1>
           <div id="admin-toggle" class="admin-nav">
             <button class="btn btn-small btn-tab" id="btn-fleet" onclick="showPage('fleet')">Fleet</button>
-            <button class="btn btn-small btn-tab" id="btn-registry" onclick="showRegistryModal()">Registry</button>
             <button class="btn btn-small btn-tab" id="btn-users" onclick="showPage('users')">Users</button>
           </div>
         </div>
@@ -2324,6 +2335,38 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+      </div>
+
+      <!-- Threshold Settings Card -->
+      <div class="settings-card" style="margin-top: 20px;">
+        <h3>Threshold Settings</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Configure protection trip points (saved to device)
+        </p>
+        <div class="device-pref-item" style="flex-direction: column; align-items: stretch; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Overcurrent Trip</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Maximum allowed current (A)</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="number" id="threshold-overcurrent" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="1" max="500" value="120">
+              <span style="color: var(--text-secondary);">A</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Dry Run Trip</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Minimum current when running (A)</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="number" id="threshold-dryrun" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="0" max="50" value="0.5">
+              <span style="color: var(--text-secondary);">A</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="updateThresholds()">Save Thresholds</button>
+        <p id="threshold-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
       </div>
     </div>
   </div>
@@ -2641,7 +2684,31 @@
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h1 style="font-size: 28px; font-weight: 700; margin: 0;">Fleet Dashboard</h1>
-        <button class="btn btn-secondary btn-small" onclick="loadFleetDashboard()">&#8635; Refresh</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" onclick="showAddDeviceToFleet()">+ New Device</button>
+          <button class="btn btn-secondary btn-small" onclick="loadFleetDashboard()">&#8635; Refresh</button>
+        </div>
+      </div>
+
+      <!-- Add Device to Fleet Form -->
+      <div id="fleet-add-device-form" style="display: none; margin-bottom: 24px; padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 16px;">Add New Device to Registry</h3>
+          <button class="btn btn-small btn-secondary" onclick="hideAddDeviceToFleet()" style="padding: 4px 8px;">&times;</button>
+        </div>
+        <div id="fleet-add-error" class="alert alert-error" style="display: none; margin-bottom: 12px;"></div>
+        <div id="fleet-add-success" class="alert alert-success" style="display: none; margin-bottom: 12px;"></div>
+        <form onsubmit="handleAddDeviceToFleet(event)" style="display: flex; gap: 10px; align-items: flex-end;">
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label style="font-size: 12px;">Device ID</label>
+            <input type="text" class="form-input" id="fleet-add-device-id" placeholder="FL-XXXXXX" style="text-transform: uppercase;" required>
+          </div>
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label style="font-size: 12px;">Name (optional)</label>
+            <input type="text" class="form-input" id="fleet-add-device-name" placeholder="Device name">
+          </div>
+          <button type="submit" class="btn btn-primary" style="height: 44px;">Add to Registry</button>
+        </form>
       </div>
 
       <!-- Fleet Stats -->
@@ -2665,6 +2732,10 @@
         <div class="fleet-stat-card">
           <div class="fleet-stat-label">Offline</div>
           <div class="fleet-stat-value offline" id="fleet-stat-offline">0</div>
+        </div>
+        <div class="fleet-stat-card">
+          <div class="fleet-stat-label">Pending</div>
+          <div class="fleet-stat-value" id="fleet-stat-pending" style="color: var(--warning);">0</div>
         </div>
       </div>
 
@@ -2693,10 +2764,11 @@
                   <th>Current</th>
                   <th>State</th>
                   <th>Last Update</th>
+                  <th style="width: 60px;"></th>
                 </tr>
               </thead>
               <tbody id="fleet-table-body">
-                <tr><td colspan="7" class="fleet-empty">Loading devices...</td></tr>
+                <tr><td colspan="8" class="fleet-empty">Loading devices...</td></tr>
               </tbody>
             </table>
           </div>
@@ -2834,6 +2906,24 @@
         </div>
         <div class="modal-buttons">
           <button type="button" class="btn btn-secondary" onclick="hideModal('rename-device-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Fleet Rename Device Modal (Admin) -->
+  <div class="modal-overlay" id="fleet-rename-modal">
+    <div class="modal">
+      <h2>Rename Device</h2>
+      <p>Device ID: <strong id="fleet-rename-device-id"></strong></p>
+      <form onsubmit="handleFleetRenameDevice(event)">
+        <div class="form-group">
+          <label>Device Name</label>
+          <input type="text" class="form-input" id="fleet-rename-name" placeholder="e.g., Borehole Pump 1">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="hideModal('fleet-rename-modal')">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -3790,6 +3880,42 @@
       }
     }
 
+    function updateThresholds() {
+      const maxCurrent = parseFloat(document.getElementById('threshold-overcurrent').value);
+      const dryCurrent = parseFloat(document.getElementById('threshold-dryrun').value);
+      const statusEl = document.getElementById('threshold-status');
+
+      // Validate
+      if (isNaN(maxCurrent) || maxCurrent < 1 || maxCurrent > 500) {
+        statusEl.textContent = 'Overcurrent must be between 1-500 A';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+      if (isNaN(dryCurrent) || dryCurrent < 0 || dryCurrent > 50) {
+        statusEl.textContent = 'Dry run must be between 0-50 A';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+
+      const cmd = JSON.stringify({
+        command: 'SET_THRESHOLDS',
+        max_current: maxCurrent,
+        dry_current: dryCurrent
+      });
+
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, cmd);
+        console.log('Sent thresholds command:', cmd);
+        statusEl.textContent = 'Thresholds saved to device';
+        statusEl.style.color = 'var(--success)';
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } else {
+        statusEl.textContent = 'Not connected to device';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
     // Update UI from telemetry data
     function updateDeviceSettings(data) {
       // Schedule settings
@@ -3831,6 +3957,13 @@
       }
       if (data.dryrun_protection !== undefined) {
         document.getElementById('protection-dryrun').checked = data.dryrun_protection;
+      }
+      // Threshold settings from telemetry
+      if (data.max_current !== undefined) {
+        document.getElementById('threshold-overcurrent').value = data.max_current;
+      }
+      if (data.dry_current !== undefined) {
+        document.getElementById('threshold-dryrun').value = data.dry_current;
       }
     }
 
@@ -5339,37 +5472,58 @@
       const tableBodyEl = document.getElementById('fleet-table-body');
 
       sidebarEl.innerHTML = '<div class="fleet-empty">Loading devices...</div>';
-      tableBodyEl.innerHTML = '<tr><td colspan="7" class="fleet-empty">Loading devices...</td></tr>';
+      tableBodyEl.innerHTML = '<tr><td colspan="8" class="fleet-empty">Loading devices...</td></tr>';
 
       try {
-        // Fetch all devices with owner info
-        // Note: user_profiles join requires foreign key relationship
-        const { data, error } = await supabaseClient
-          .from('devices')
-          .select('*')
-          .order('name', { ascending: true });
+        // Fetch all devices from device_registry (the source of truth)
+        const { data: registryDevices, error: registryError } = await supabaseClient
+          .from('device_registry')
+          .select('device_id, name, created_at')
+          .order('created_at', { ascending: false });
 
-        // Fetch user profiles separately for owner info
-        if (data && data.length > 0) {
-          const userIds = [...new Set(data.map(d => d.user_id))];
+        if (registryError) throw registryError;
+
+        // Fetch registered devices from devices table
+        const { data: registeredDevices, error: devicesError } = await supabaseClient
+          .from('devices')
+          .select('device_id, user_id, name');
+
+        if (devicesError) throw devicesError;
+
+        // Create a map of registered devices
+        const registeredMap = {};
+        if (registeredDevices) {
+          registeredDevices.forEach(d => {
+            registeredMap[d.device_id] = d;
+          });
+        }
+
+        // Fetch user profiles for registered devices
+        const userIds = [...new Set(registeredDevices?.map(d => d.user_id).filter(Boolean) || [])];
+        let profileMap = {};
+        if (userIds.length > 0) {
           const { data: profiles } = await supabaseClient
             .from('user_profiles')
             .select('id, email, full_name')
             .in('id', userIds);
-
-          // Map profiles to devices
-          const profileMap = {};
           if (profiles) {
             profiles.forEach(p => profileMap[p.id] = p);
           }
-          data.forEach(d => {
-            d.user_profiles = profileMap[d.user_id] || null;
-          });
         }
 
-        if (error) throw error;
-
-        fleetDevices = data || [];
+        // Merge registry with registered devices
+        fleetDevices = (registryDevices || []).map(regDevice => {
+          const registered = registeredMap[regDevice.device_id];
+          return {
+            device_id: regDevice.device_id,
+            name: registered?.name || regDevice.name,
+            registry_name: regDevice.name,
+            created_at: regDevice.created_at,
+            user_id: registered?.user_id || null,
+            is_registered: !!registered,
+            user_profiles: registered?.user_id ? (profileMap[registered.user_id] || null) : null
+          };
+        });
 
         // Connect MQTT to get real-time data
         if (typeof connectMQTT === 'function') connectMQTT();
@@ -5378,7 +5532,7 @@
       } catch (error) {
         console.error('Error loading fleet:', error);
         sidebarEl.innerHTML = '<div class="fleet-empty">Error loading devices</div>';
-        tableBodyEl.innerHTML = '<tr><td colspan="7" class="fleet-empty">Error: ' + error.message + '</td></tr>';
+        tableBodyEl.innerHTML = '<tr><td colspan="8" class="fleet-empty">Error: ' + error.message + '</td></tr>';
       }
     }
 
@@ -5398,7 +5552,8 @@
         const name = (d.name || '').toLowerCase();
         const id = (d.device_id || '').toLowerCase();
         const owner = d.user_profiles ? (d.user_profiles.full_name || d.user_profiles.email || '').toLowerCase() : '';
-        return name.includes(search) || id.includes(search) || owner.includes(search);
+        const isPending = !d.is_registered && 'pending'.includes(search);
+        return name.includes(search) || id.includes(search) || owner.includes(search) || isPending;
       });
 
       if (filtered.length === 0) {
@@ -5410,12 +5565,17 @@
         const data = deviceLastData[device.device_id] || {};
         const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
         const isFault = isOnline && data.state === 'FAULT';
+        const isPending = !device.is_registered;
 
         let statusClass = 'offline';
-        if (isFault) statusClass = 'fault';
+        if (isPending) statusClass = 'pending';
+        else if (isFault) statusClass = 'fault';
         else if (isOnline) statusClass = 'online';
 
-        const ownerName = device.user_profiles ? (device.user_profiles.full_name || device.user_profiles.email) : 'Unassigned';
+        let ownerName = device.user_profiles ? (device.user_profiles.full_name || device.user_profiles.email) : 'Unassigned';
+        if (isPending) {
+          ownerName = '<span style="color: var(--warning); font-size: 11px;">Pending</span>';
+        }
         const isSelected = selectedFleetDeviceId === device.device_id;
 
         return '<div class="fleet-device-item' + (isSelected ? ' selected' : '') + '" onclick="selectFleetDevice(\'' + device.device_id + '\')">' +
@@ -5438,11 +5598,12 @@
         const name = (d.name || '').toLowerCase();
         const id = (d.device_id || '').toLowerCase();
         const owner = d.user_profiles ? (d.user_profiles.full_name || d.user_profiles.email || '').toLowerCase() : '';
-        return name.includes(search) || id.includes(search) || owner.includes(search);
+        const isPending = !d.is_registered && 'pending'.includes(search);
+        return name.includes(search) || id.includes(search) || owner.includes(search) || isPending;
       });
 
       if (filtered.length === 0) {
-        tableBodyEl.innerHTML = '<tr><td colspan="7" class="fleet-empty">No devices found</td></tr>';
+        tableBodyEl.innerHTML = '<tr><td colspan="8" class="fleet-empty">No devices found</td></tr>';
         return;
       }
 
@@ -5450,11 +5611,15 @@
         const data = deviceLastData[device.device_id] || {};
         const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
         const isFault = isOnline && data.state === 'FAULT';
+        const isPending = !device.is_registered;
 
         // Status
         let statusClass = 'offline';
         let statusText = 'Offline';
-        if (isFault) {
+        if (isPending) {
+          statusClass = 'pending';
+          statusText = '--';
+        } else if (isFault) {
           statusClass = 'fault';
           statusText = 'Fault';
         } else if (isOnline) {
@@ -5463,15 +5628,18 @@
         }
 
         // State
-        let state = isOnline ? (data.state || 'STOPPED') : 'OFFLINE';
-        let stateClass = state.toLowerCase();
+        let state = isPending ? '--' : (isOnline ? (data.state || 'STOPPED') : 'OFFLINE');
+        let stateClass = isPending ? 'pending' : state.toLowerCase();
 
         // Owner
-        const ownerName = device.user_profiles ? (device.user_profiles.full_name || device.user_profiles.email) : 'Unassigned';
+        let ownerHtml = device.user_profiles ? (device.user_profiles.full_name || device.user_profiles.email) : 'Unassigned';
+        if (isPending) {
+          ownerHtml = '<span class="badge badge-warning" style="background: var(--warning); color: #000; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Pending</span>';
+        }
 
         // Voltage
         let voltageHtml = '<span class="fleet-reading-cell">--</span>';
-        if (isOnline && data.Va !== undefined) {
+        if (!isPending && isOnline && data.Va !== undefined) {
           const vAvg = ((data.Va + data.Vb + data.Vc) / 3).toFixed(0);
           voltageHtml = '<div class="fleet-reading-cell"><span class="avg">' + vAvg + 'V</span><div class="breakdown">' +
             data.Va.toFixed(0) + '/' + data.Vb.toFixed(0) + '/' + data.Vc.toFixed(0) + '</div></div>';
@@ -5479,7 +5647,7 @@
 
         // Current
         let currentHtml = '<span class="fleet-reading-cell">--</span>';
-        if (isOnline && data.Ia !== undefined) {
+        if (!isPending && isOnline && data.Ia !== undefined) {
           const iAvg = ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1);
           currentHtml = '<div class="fleet-reading-cell"><span class="avg">' + iAvg + 'A</span><div class="breakdown">' +
             data.Ia.toFixed(1) + '/' + data.Ib.toFixed(1) + '/' + data.Ic.toFixed(1) + '</div></div>';
@@ -5487,7 +5655,7 @@
 
         // Last update
         let lastUpdateHtml = '<span class="fleet-last-update">--</span>';
-        if (data.lastSeen) {
+        if (!isPending && data.lastSeen) {
           lastUpdateHtml = '<span class="fleet-last-update">' + formatRelativeTime(data.lastSeen) + '</span>';
         }
 
@@ -5495,21 +5663,27 @@
 
         return '<tr class="' + (isSelected ? 'selected' : '') + '" onclick="handleFleetRowClick(\'' + device.device_id + '\')" data-device-id="' + device.device_id + '">' +
           '<td><div class="fleet-device-cell"><span class="name">' + (device.name || 'Unnamed') + '</span><span class="id">' + device.device_id + '</span></div></td>' +
-          '<td>' + ownerName + '</td>' +
+          '<td>' + ownerHtml + '</td>' +
           '<td><span class="fleet-status-badge ' + statusClass + '">' + statusText + '</span></td>' +
           '<td>' + voltageHtml + '</td>' +
           '<td>' + currentHtml + '</td>' +
           '<td><span class="fleet-state-badge ' + stateClass + '">' + state + '</span></td>' +
           '<td>' + lastUpdateHtml + '</td>' +
+          '<td><button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); showFleetRenameModal(\'' + device.device_id + '\')" style="padding: 4px 8px; font-size: 11px;" title="Edit name">&#9998;</button></td>' +
         '</tr>';
       }).join('');
     }
 
     function updateFleetStats() {
       let total = fleetDevices.length;
-      let online = 0, running = 0, faults = 0, offline = 0;
+      let online = 0, running = 0, faults = 0, offline = 0, pending = 0;
 
       fleetDevices.forEach(device => {
+        if (!device.is_registered) {
+          pending++;
+          return; // Don't count pending devices in other stats
+        }
+
         const data = deviceLastData[device.device_id] || {};
         const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
 
@@ -5527,6 +5701,7 @@
       document.getElementById('fleet-stat-running').textContent = running;
       document.getElementById('fleet-stat-faults').textContent = faults;
       document.getElementById('fleet-stat-offline').textContent = offline;
+      document.getElementById('fleet-stat-pending').textContent = pending;
     }
 
     function handleFleetSearch(value) {
@@ -5551,11 +5726,121 @@
       // Navigate to device detail page
       const device = fleetDevices.find(d => d.device_id === deviceId);
       if (device) {
+        // Only allow viewing registered devices
+        if (!device.is_registered) {
+          alert('This device has not been registered by a user yet.');
+          return;
+        }
         // Ensure device is in the main devices array for viewDevice to work
         if (!devices.find(d => d.device_id === deviceId)) {
           devices.push(device);
         }
         viewDevice(deviceId);
+      }
+    }
+
+    function showAddDeviceToFleet() {
+      document.getElementById('fleet-add-device-form').style.display = 'block';
+      document.getElementById('fleet-add-device-id').focus();
+    }
+
+    function hideAddDeviceToFleet() {
+      document.getElementById('fleet-add-device-form').style.display = 'none';
+      document.getElementById('fleet-add-device-id').value = '';
+      document.getElementById('fleet-add-device-name').value = '';
+      document.getElementById('fleet-add-error').style.display = 'none';
+      document.getElementById('fleet-add-success').style.display = 'none';
+    }
+
+    async function handleAddDeviceToFleet(e) {
+      e.preventDefault();
+      const deviceId = document.getElementById('fleet-add-device-id').value.trim().toUpperCase();
+      const deviceName = document.getElementById('fleet-add-device-name').value.trim();
+      const errorEl = document.getElementById('fleet-add-error');
+      const successEl = document.getElementById('fleet-add-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      try {
+        const { error } = await supabaseClient
+          .from('device_registry')
+          .insert({
+            device_id: deviceId,
+            name: deviceName || null,
+            provisioned_by: currentUser.id
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Device ID already exists in registry');
+          }
+          throw error;
+        }
+
+        successEl.textContent = 'Device ' + deviceId + ' added to registry';
+        successEl.style.display = 'block';
+        document.getElementById('fleet-add-device-id').value = '';
+        document.getElementById('fleet-add-device-name').value = '';
+
+        // Reload fleet to show new device
+        await loadFleetDashboard();
+
+        // Auto-hide form after success
+        setTimeout(() => {
+          hideAddDeviceToFleet();
+        }, 2000);
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    var fleetRenameDeviceId = null;
+
+    function showFleetRenameModal(deviceId) {
+      fleetRenameDeviceId = deviceId;
+      const device = fleetDevices.find(d => d.device_id === deviceId);
+      document.getElementById('fleet-rename-device-id').textContent = deviceId;
+      document.getElementById('fleet-rename-name').value = device?.name || '';
+      showModal('fleet-rename-modal');
+    }
+
+    async function handleFleetRenameDevice(e) {
+      e.preventDefault();
+      const newName = document.getElementById('fleet-rename-name').value.trim();
+
+      try {
+        // Update device_registry (always - this is the source of truth for admin)
+        const { error: registryError } = await supabaseClient
+          .from('device_registry')
+          .update({ name: newName || null })
+          .eq('device_id', fleetRenameDeviceId);
+
+        if (registryError) throw registryError;
+
+        // Also update devices table if device is registered
+        const device = fleetDevices.find(d => d.device_id === fleetRenameDeviceId);
+        if (device && device.is_registered) {
+          const { error: devicesError } = await supabaseClient
+            .from('devices')
+            .update({ name: newName || null })
+            .eq('device_id', fleetRenameDeviceId);
+
+          if (devicesError) {
+            console.warn('Could not update devices table:', devicesError);
+          }
+        }
+
+        // Update local data
+        if (device) {
+          device.name = newName || null;
+        }
+
+        hideModal('fleet-rename-modal');
+        refreshFleetDisplay();
+      } catch (error) {
+        alert('Error: ' + error.message);
       }
     }
 
