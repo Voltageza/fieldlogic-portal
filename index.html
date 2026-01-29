@@ -1001,6 +1001,77 @@
     .state-text.stopped { color: var(--text-tertiary); }
     .state-text.fault { color: var(--danger); }
 
+    /* ─────────────── STARTUP ANIMATION ─────────────── */
+    .startup-sequence {
+      display: none;
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .startup-sequence.visible {
+      display: block;
+    }
+
+    .startup-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin: 4px 0;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      background: var(--bg-secondary);
+      transition: all 0.3s ease;
+    }
+
+    .startup-step::before {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--text-tertiary);
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+
+    .startup-step.active {
+      color: var(--accent);
+      background: rgba(0, 122, 255, 0.08);
+    }
+
+    .startup-step.active::before {
+      border-color: var(--accent);
+      background: var(--accent);
+      animation: pulse-ring 1.5s ease-in-out infinite;
+    }
+
+    .startup-step.complete {
+      color: var(--success);
+      background: rgba(52, 199, 89, 0.08);
+    }
+
+    .startup-step.complete::before {
+      border-color: var(--success);
+      background: var(--success);
+      content: '\2713';
+      color: white;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(0, 122, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); }
+    }
+
     /* ─────────────── CONTROLS ─────────────── */
     .controls-grid {
       display: grid;
@@ -2206,6 +2277,14 @@
         </div>
       </div>
 
+      <!-- Startup Animation Sequence -->
+      <div class="startup-sequence" id="startup-sequence">
+        <div class="startup-step" id="step-command">1. Start Command</div>
+        <div class="startup-step" id="step-contactor">2. Contactor Engaged</div>
+        <div class="startup-step" id="step-current">3. Current Detected</div>
+        <div class="startup-step" id="step-running">4. Motor Running</div>
+      </div>
+
       <div class="controls-grid">
         <div class="control-card">
           <h3>Controls</h3>
@@ -2225,6 +2304,10 @@
             <div class="info-item">
               <span class="label">Command</span>
               <span class="status-badge inactive" id="device-cmd-status">INACTIVE</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Contactor</span>
+              <span class="status-badge inactive" id="device-contactor-status">OFF</span>
             </div>
             <div class="info-item">
               <span class="label">Mode</span>
@@ -2367,6 +2450,38 @@
         </div>
         <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="updateThresholds()">Save Thresholds</button>
         <p id="threshold-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
+      </div>
+
+      <!-- Fault Delay Settings Card -->
+      <div class="settings-card" style="margin-top: 20px;">
+        <h3>Fault Delay Settings</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Delay before protection trips (for transient filtering)
+        </p>
+        <div class="device-pref-item" style="flex-direction: column; align-items: stretch; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Overcurrent Delay</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="number" id="delay-overcurrent" class="form-input" style="width: 100px; text-align: right;" step="100" min="0" max="30000" value="0">
+              <span style="color: var(--text-secondary);">ms</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Dry Run Delay</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="number" id="delay-dryrun" class="form-input" style="width: 100px; text-align: right;" step="100" min="0" max="30000" value="0">
+              <span style="color: var(--text-secondary);">ms</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="saveDelays()">Save Delays</button>
+        <p id="delay-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
       </div>
     </div>
   </div>
@@ -3761,6 +3876,19 @@
       cmdEl.textContent = data.cmd ? 'ACTIVE' : 'INACTIVE';
       cmdEl.className = 'status-badge ' + (data.cmd ? 'active' : 'inactive');
 
+      // Contactor status: CONFIRMED (on + feedback), PENDING (on, no feedback), OFF
+      const contactorEl = document.getElementById('device-contactor-status');
+      if (data.cmd && data.contactor_confirmed) {
+        contactorEl.textContent = 'CONFIRMED';
+        contactorEl.className = 'status-badge online';
+      } else if (data.cmd) {
+        contactorEl.textContent = 'PENDING';
+        contactorEl.className = 'status-badge active';
+      } else {
+        contactorEl.textContent = 'OFF';
+        contactorEl.className = 'status-badge inactive';
+      }
+
       const modeEl = document.getElementById('device-mode-status');
       if (data.mode) {
         modeEl.textContent = data.mode;
@@ -3780,9 +3908,14 @@
         }
       }
 
-      // Button states
-      document.getElementById('device-btn-start').disabled = state === 'FAULT' || !isOnline;
+      // Button states (but don't override if startup animation is active)
+      if (!startupAnimationActive) {
+        document.getElementById('device-btn-start').disabled = state === 'FAULT' || !isOnline;
+      }
       document.getElementById('device-btn-reset').disabled = state !== 'FAULT' || !isOnline;
+
+      // Update startup animation if active
+      updateStartupAnimation(data);
 
       // Update schedule and protection settings UI
       updateDeviceSettings(data);
@@ -3793,6 +3926,90 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent command:', topic, cmd);
+
+        // Show startup animation on START command
+        if (cmd === 'START') {
+          showStartupAnimation();
+        } else if (cmd === 'STOP') {
+          hideStartupAnimation();
+        }
+      }
+    }
+
+    // ============================================
+    // STARTUP ANIMATION
+    // ============================================
+    var startupAnimationActive = false;
+
+    function showStartupAnimation() {
+      startupAnimationActive = true;
+      const seq = document.getElementById('startup-sequence');
+      seq.classList.add('visible');
+
+      // Reset all steps to pending
+      ['step-command', 'step-contactor', 'step-current', 'step-running'].forEach(id => {
+        document.getElementById(id).className = 'startup-step';
+      });
+
+      // Set first step as active
+      document.getElementById('step-command').classList.add('active');
+
+      // Change start button text
+      const startBtn = document.getElementById('device-btn-start');
+      startBtn.textContent = 'Starting...';
+      startBtn.disabled = true;
+    }
+
+    function hideStartupAnimation() {
+      startupAnimationActive = false;
+      const seq = document.getElementById('startup-sequence');
+      seq.classList.remove('visible');
+
+      // Restore start button
+      const startBtn = document.getElementById('device-btn-start');
+      startBtn.textContent = 'Start Pump';
+    }
+
+    function updateStartupAnimation(data) {
+      if (!startupAnimationActive) return;
+
+      const stepCommand = document.getElementById('step-command');
+      const stepContactor = document.getElementById('step-contactor');
+      const stepCurrent = document.getElementById('step-current');
+      const stepRunning = document.getElementById('step-running');
+
+      // Step 1: Start command active
+      if (data.cmd) {
+        stepCommand.className = 'startup-step complete';
+      }
+
+      // Step 2: Contactor confirmed via DI4
+      if (data.contactor_confirmed) {
+        stepContactor.className = 'startup-step complete';
+      } else if (data.cmd) {
+        stepContactor.className = 'startup-step active';
+      }
+
+      // Step 3: Current detected (max > 5A)
+      const maxCurrent = Math.max(data.Ia || 0, data.Ib || 0, data.Ic || 0);
+      if (maxCurrent > 5) {
+        stepCurrent.className = 'startup-step complete';
+      } else if (data.contactor_confirmed) {
+        stepCurrent.className = 'startup-step active';
+      }
+
+      // Step 4: Motor running
+      if (data.state === 'RUNNING') {
+        stepRunning.className = 'startup-step complete';
+        // Auto-hide animation after a short delay
+        setTimeout(hideStartupAnimation, 2000);
+      } else if (maxCurrent > 5) {
+        stepRunning.className = 'startup-step active';
+      }
+
+      // Cancel animation if stopped or faulted
+      if (!data.cmd || data.state === 'FAULT') {
+        hideStartupAnimation();
       }
     }
 
@@ -3918,6 +4135,42 @@
       }
     }
 
+    function saveDelays() {
+      const overcurrentDelay = parseInt(document.getElementById('delay-overcurrent').value);
+      const dryrunDelay = parseInt(document.getElementById('delay-dryrun').value);
+      const statusEl = document.getElementById('delay-status');
+
+      // Validate
+      if (isNaN(overcurrentDelay) || overcurrentDelay < 0 || overcurrentDelay > 30000) {
+        statusEl.textContent = 'Overcurrent delay must be between 0-30000 ms';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+      if (isNaN(dryrunDelay) || dryrunDelay < 0 || dryrunDelay > 30000) {
+        statusEl.textContent = 'Dry run delay must be between 0-30000 ms';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+
+      const cmd = JSON.stringify({
+        command: 'SET_DELAYS',
+        overcurrent_delay_ms: overcurrentDelay,
+        dryrun_delay_ms: dryrunDelay
+      });
+
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, cmd);
+        console.log('Sent delays command:', cmd);
+        statusEl.textContent = 'Delays saved to device';
+        statusEl.style.color = 'var(--success)';
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } else {
+        statusEl.textContent = 'Not connected to device';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
     // Update UI from telemetry data
     function updateDeviceSettings(data) {
       // Schedule settings
@@ -3966,6 +4219,13 @@
       }
       if (data.dry_current !== undefined) {
         document.getElementById('threshold-dryrun').value = data.dry_current;
+      }
+      // Delay settings from telemetry
+      if (data.overcurrent_delay_ms !== undefined) {
+        document.getElementById('delay-overcurrent').value = data.overcurrent_delay_ms;
+      }
+      if (data.dryrun_delay_ms !== undefined) {
+        document.getElementById('delay-dryrun').value = data.dryrun_delay_ms;
       }
     }
 
