@@ -2465,8 +2465,8 @@
               <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="delay-overcurrent" class="form-input" style="width: 100px; text-align: right;" step="100" min="0" max="30000" value="0">
-              <span style="color: var(--text-secondary);">ms</span>
+              <input type="number" id="delay-overcurrent" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
+              <span style="color: var(--text-secondary);">s</span>
             </div>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2475,8 +2475,8 @@
               <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="delay-dryrun" class="form-input" style="width: 100px; text-align: right;" step="100" min="0" max="30000" value="0">
-              <span style="color: var(--text-secondary);">ms</span>
+              <input type="number" id="delay-dryrun" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
+              <span style="color: var(--text-secondary);">s</span>
             </div>
           </div>
         </div>
@@ -4141,21 +4141,21 @@
       const statusEl = document.getElementById('delay-status');
 
       // Validate
-      if (isNaN(overcurrentDelay) || overcurrentDelay < 0 || overcurrentDelay > 30000) {
-        statusEl.textContent = 'Overcurrent delay must be between 0-30000 ms';
+      if (isNaN(overcurrentDelay) || overcurrentDelay < 0 || overcurrentDelay > 30) {
+        statusEl.textContent = 'Overcurrent delay must be between 0-30 seconds';
         statusEl.style.color = 'var(--danger)';
         return;
       }
-      if (isNaN(dryrunDelay) || dryrunDelay < 0 || dryrunDelay > 30000) {
-        statusEl.textContent = 'Dry run delay must be between 0-30000 ms';
+      if (isNaN(dryrunDelay) || dryrunDelay < 0 || dryrunDelay > 30) {
+        statusEl.textContent = 'Dry run delay must be between 0-30 seconds';
         statusEl.style.color = 'var(--danger)';
         return;
       }
 
       const cmd = JSON.stringify({
         command: 'SET_DELAYS',
-        overcurrent_delay_ms: overcurrentDelay,
-        dryrun_delay_ms: dryrunDelay
+        overcurrent_delay_s: overcurrentDelay,
+        dryrun_delay_s: dryrunDelay
       });
 
       if (mqttClient && mqttClient.connected && currentDeviceId) {
@@ -4221,11 +4221,11 @@
         document.getElementById('threshold-dryrun').value = data.dry_current;
       }
       // Delay settings from telemetry
-      if (data.overcurrent_delay_ms !== undefined) {
-        document.getElementById('delay-overcurrent').value = data.overcurrent_delay_ms;
+      if (data.overcurrent_delay_s !== undefined) {
+        document.getElementById('delay-overcurrent').value = data.overcurrent_delay_s;
       }
-      if (data.dryrun_delay_ms !== undefined) {
-        document.getElementById('delay-dryrun').value = data.dryrun_delay_ms;
+      if (data.dryrun_delay_s !== undefined) {
+        document.getElementById('delay-dryrun').value = data.dryrun_delay_s;
       }
     }
 
