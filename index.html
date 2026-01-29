@@ -796,6 +796,65 @@
       justify-content: center;
     }
 
+    /* Config Modal - larger, scrollable */
+    .modal-config {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      max-width: 600px;
+      width: 95%;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .modal-config-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .modal-config-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .modal-config-close:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .modal-config-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-config-body .settings-card {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    .modal-config-body .settings-card:last-child {
+      margin-bottom: 0;
+    }
+
     /* ─────────────── DEVICE DETAIL PAGE ─────────────── */
     .device-detail-header {
       display: flex;
@@ -2292,6 +2351,7 @@
             <button class="btn btn-success" id="device-btn-start" onclick="sendDeviceCommand('START')">Start Pump</button>
             <button class="btn btn-danger" id="device-btn-stop" onclick="sendDeviceCommand('STOP')">Stop Pump</button>
             <button class="btn btn-secondary" id="device-btn-reset" onclick="sendDeviceCommand('RESET')">Reset Fault</button>
+            <button class="btn btn-secondary" onclick="showModal('device-config-modal')">Configure</button>
           </div>
         </div>
         <div class="control-card">
@@ -2315,173 +2375,186 @@
             </div>
           </div>
         </div>
-        <div class="control-card">
+      </div>
+    </div>
+  </div>
+
+  <!-- Device Config Modal -->
+  <div class="modal-overlay" id="device-config-modal">
+    <div class="modal-config">
+      <div class="modal-config-header">
+        <h2>Device Configuration</h2>
+        <button class="modal-config-close" onclick="hideModal('device-config-modal')">&times;</button>
+      </div>
+      <div class="modal-config-body">
+        <!-- Device Actions -->
+        <div class="settings-card">
           <h3>Device Actions</h3>
-          <div class="control-buttons">
+          <div class="control-buttons" style="margin-top: 12px;">
             <button class="btn btn-secondary" onclick="editDeviceName()">Rename Device</button>
             <button class="btn btn-danger" onclick="confirmRemoveDevice()">Remove Device</button>
           </div>
         </div>
-      </div>
 
-      <!-- Schedule Card -->
-      <div class="settings-card" style="margin-top: 20px;">
-        <h3>Schedule</h3>
-        <div class="device-pref-item">
-          <div>
-            <strong>Enable Schedule</strong>
-            <p style="font-size: 12px; color: var(--text-secondary);">Auto start/stop based on time</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="schedule-enabled" onchange="updateScheduleEnabled()">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div id="schedule-times" style="margin-top: 16px;">
-          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-            <div class="form-group" style="flex: 1; min-width: 120px;">
-              <label>Start Time</label>
-              <input type="time" class="form-input" id="schedule-start" value="06:00">
-            </div>
-            <div class="form-group" style="flex: 1; min-width: 120px;">
-              <label>End Time</label>
-              <input type="time" class="form-input" id="schedule-end" value="18:00">
-            </div>
-          </div>
-          <div class="form-group" style="margin-top: 16px;">
-            <label>Days</label>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-              <label class="day-checkbox"><input type="checkbox" id="schedule-sun" checked><span>Sun</span></label>
-              <label class="day-checkbox"><input type="checkbox" id="schedule-mon" checked><span>Mon</span></label>
-              <label class="day-checkbox"><input type="checkbox" id="schedule-tue" checked><span>Tue</span></label>
-              <label class="day-checkbox"><input type="checkbox" id="schedule-wed" checked><span>Wed</span></label>
-              <label class="day-checkbox"><input type="checkbox" id="schedule-thu" checked><span>Thu</span></label>
-              <label class="day-checkbox"><input type="checkbox" id="schedule-fri" checked><span>Fri</span></label>
-              <label class="day-checkbox"><input type="checkbox" id="schedule-sat" checked><span>Sat</span></label>
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top: 12px;">Save Schedule</button>
-        </div>
-        <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
-          <p id="device-time" style="font-size: 12px; color: var(--text-secondary); margin: 0;">Device time: --:--:--</p>
-          <button class="btn btn-secondary" onclick="requestDeviceSettings()" style="padding: 4px 12px; font-size: 12px;">Refresh</button>
-        </div>
-      </div>
-
-      <!-- Ruraflex Card -->
-      <div class="settings-card" style="margin-top: 20px;">
-        <h3>Ruraflex (Eskom TOU)</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Eskom time-of-use schedule. Runs pump during OFF-PEAK hours only.
-        </p>
-        <div class="device-pref-item">
-          <div>
-            <strong>Enable Ruraflex</strong>
-            <p style="font-size: 12px; color: var(--text-secondary);">Off-peak hours only (cheapest rates)</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="ruraflex-enabled" onchange="toggleRuraflex()">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div id="ruraflex-info" style="margin-top: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 12px; display: none;">
-          <strong style="color: var(--accent);">Off-Peak Hours:</strong><br>
-          <strong>Weekdays:</strong> 22:00 - 06:00<br>
-          <strong>Weekends:</strong> All day except 07:00-12:00 &amp; 18:00-20:00<br>
-          <span style="color: var(--text-secondary);">Season auto-detected (Jun-Aug = High Demand, Sep-May = Low Demand)</span>
-        </div>
-      </div>
-
-      <!-- Protection Card -->
-      <div class="settings-card" style="margin-top: 20px;">
-        <h3>Protection Settings</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Warning: Disabling protection may damage equipment
-        </p>
-        <div class="device-pref-item">
-          <div>
-            <strong>Overcurrent Protection</strong>
-            <p style="font-size: 12px; color: var(--text-secondary);">Trips on high current</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="protection-overcurrent" checked onchange="updateProtection()">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="device-pref-item">
-          <div>
-            <strong>Dry Run Protection</strong>
-            <p style="font-size: 12px; color: var(--text-secondary);">Trips on low current</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="protection-dryrun" checked onchange="updateProtection()">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Threshold Settings Card -->
-      <div class="settings-card" style="margin-top: 20px;">
-        <h3>Threshold Settings</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Configure protection trip points (saved to device)
-        </p>
-        <div class="device-pref-item" style="flex-direction: column; align-items: stretch; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+        <!-- Schedule Card -->
+        <div class="settings-card">
+          <h3>Schedule</h3>
+          <div class="device-pref-item">
             <div>
-              <strong>Overcurrent Trip</strong>
-              <p style="font-size: 12px; color: var(--text-secondary);">Maximum allowed current (A)</p>
+              <strong>Enable Schedule</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Auto start/stop based on time</p>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="threshold-overcurrent" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="1" max="500" value="120">
-              <span style="color: var(--text-secondary);">A</span>
-            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="schedule-enabled" onchange="updateScheduleEnabled()">
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>Dry Run Trip</strong>
-              <p style="font-size: 12px; color: var(--text-secondary);">Minimum current when running (A)</p>
+          <div id="schedule-times" style="margin-top: 16px;">
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+              <div class="form-group" style="flex: 1; min-width: 120px;">
+                <label>Start Time</label>
+                <input type="time" class="form-input" id="schedule-start" value="06:00">
+              </div>
+              <div class="form-group" style="flex: 1; min-width: 120px;">
+                <label>End Time</label>
+                <input type="time" class="form-input" id="schedule-end" value="18:00">
+              </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="threshold-dryrun" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="0" max="50" value="0.5">
-              <span style="color: var(--text-secondary);">A</span>
+            <div class="form-group" style="margin-top: 16px;">
+              <label>Days</label>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                <label class="day-checkbox"><input type="checkbox" id="schedule-sun" checked><span>Sun</span></label>
+                <label class="day-checkbox"><input type="checkbox" id="schedule-mon" checked><span>Mon</span></label>
+                <label class="day-checkbox"><input type="checkbox" id="schedule-tue" checked><span>Tue</span></label>
+                <label class="day-checkbox"><input type="checkbox" id="schedule-wed" checked><span>Wed</span></label>
+                <label class="day-checkbox"><input type="checkbox" id="schedule-thu" checked><span>Thu</span></label>
+                <label class="day-checkbox"><input type="checkbox" id="schedule-fri" checked><span>Fri</span></label>
+                <label class="day-checkbox"><input type="checkbox" id="schedule-sat" checked><span>Sat</span></label>
+              </div>
             </div>
+            <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top: 12px;">Save Schedule</button>
+          </div>
+          <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+            <p id="device-time" style="font-size: 12px; color: var(--text-secondary); margin: 0;">Device time: --:--:--</p>
+            <button class="btn btn-secondary" onclick="requestDeviceSettings()" style="padding: 4px 12px; font-size: 12px;">Refresh</button>
           </div>
         </div>
-        <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="updateThresholds()">Save Thresholds</button>
-        <p id="threshold-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
-      </div>
 
-      <!-- Fault Delay Settings Card -->
-      <div class="settings-card" style="margin-top: 20px;">
-        <h3>Fault Delay Settings</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Delay before protection trips (for transient filtering)
-        </p>
-        <div class="device-pref-item" style="flex-direction: column; align-items: stretch; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+        <!-- Ruraflex Card -->
+        <div class="settings-card">
+          <h3>Ruraflex (Eskom TOU)</h3>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Eskom time-of-use schedule. Runs pump during OFF-PEAK hours only.
+          </p>
+          <div class="device-pref-item">
             <div>
-              <strong>Overcurrent Delay</strong>
-              <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+              <strong>Enable Ruraflex</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Off-peak hours only (cheapest rates)</p>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="delay-overcurrent" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
-              <span style="color: var(--text-secondary);">s</span>
-            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="ruraflex-enabled" onchange="toggleRuraflex()">
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>Dry Run Delay</strong>
-              <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="number" id="delay-dryrun" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
-              <span style="color: var(--text-secondary);">s</span>
-            </div>
+          <div id="ruraflex-info" style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; font-size: 12px; display: none;">
+            <strong style="color: var(--accent);">Off-Peak Hours:</strong><br>
+            <strong>Weekdays:</strong> 22:00 - 06:00<br>
+            <strong>Weekends:</strong> All day except 07:00-12:00 &amp; 18:00-20:00<br>
+            <span style="color: var(--text-secondary);">Season auto-detected (Jun-Aug = High Demand, Sep-May = Low Demand)</span>
           </div>
         </div>
-        <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="saveDelays()">Save Delays</button>
-        <p id="delay-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
+
+        <!-- Protection Card -->
+        <div class="settings-card">
+          <h3>Protection Settings</h3>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Warning: Disabling protection may damage equipment
+          </p>
+          <div class="device-pref-item">
+            <div>
+              <strong>Overcurrent Protection</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Trips on high current</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="protection-overcurrent" checked onchange="updateProtection()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="device-pref-item">
+            <div>
+              <strong>Dry Run Protection</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Trips on low current</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="protection-dryrun" checked onchange="updateProtection()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Threshold Settings Card -->
+        <div class="settings-card">
+          <h3>Threshold Settings</h3>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Configure protection trip points (saved to device)
+          </p>
+          <div class="device-pref-item" style="flex-direction: column; align-items: stretch; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Overcurrent Trip</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Maximum allowed current (A)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="threshold-overcurrent" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="1" max="500" value="120">
+                <span style="color: var(--text-secondary);">A</span>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Dry Run Trip</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Minimum current when running (A)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="threshold-dryrun" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="0" max="50" value="0.5">
+                <span style="color: var(--text-secondary);">A</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="updateThresholds()">Save Thresholds</button>
+          <p id="threshold-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
+        </div>
+
+        <!-- Fault Delay Settings Card -->
+        <div class="settings-card">
+          <h3>Fault Delay Settings</h3>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Delay before protection trips (for transient filtering)
+          </p>
+          <div class="device-pref-item" style="flex-direction: column; align-items: stretch; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Overcurrent Delay</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="delay-overcurrent" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
+                <span style="color: var(--text-secondary);">s</span>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Dry Run Delay</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="delay-dryrun" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
+                <span style="color: var(--text-secondary);">s</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="saveDelays()">Save Delays</button>
+          <p id="delay-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
+        </div>
       </div>
     </div>
   </div>
