@@ -3312,7 +3312,7 @@
       listEl.innerHTML = devices.map(device => {
         const data = deviceLastData[device.device_id] || {};
         const isDecommissioned = device.decommissioned === true;
-        const isOnline = !isDecommissioned && data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        const isOnline = !isDecommissioned && data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
 
         let state, stateClass;
         if (isDecommissioned) {
@@ -3375,7 +3375,7 @@
       let online = 0, running = 0, faults = 0;
       devices.forEach(device => {
         const data = deviceLastData[device.device_id] || {};
-        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
         if (isOnline) {
           online++;
           if (data.state === 'RUNNING') running++;
@@ -3539,6 +3539,7 @@
         // Subscribe to new device
         if (mqttClient && mqttClient.connected) {
           mqttClient.subscribe('fieldlink/' + deviceId + '/telemetry');
+          mqttClient.subscribe('fieldlink/' + deviceId + '/status');
         }
       } catch (error) {
         errorEl.textContent = error.message;
@@ -3689,6 +3690,7 @@
       // Subscribe specifically to this device if not already
       if (mqttClient && mqttClient.connected) {
         mqttClient.subscribe('fieldlink/' + deviceId + '/telemetry');
+        mqttClient.subscribe('fieldlink/' + deviceId + '/status');
         // Request current settings from device
         requestDeviceSettings();
       }
@@ -3706,7 +3708,7 @@
     }
 
     function updateDeviceUI(data) {
-      const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+      const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
 
       // Connection status
       const dot = document.getElementById('device-connection-dot');
@@ -4043,6 +4045,7 @@
         // Subscribe to all user's devices
         devices.forEach(device => {
           mqttClient.subscribe('fieldlink/' + device.device_id + '/telemetry');
+          mqttClient.subscribe('fieldlink/' + device.device_id + '/status');
         });
       });
 
@@ -4050,6 +4053,30 @@
         try {
           const parts = topic.split('/');
           const deviceId = parts[1];
+          const msgType = parts[2]; // 'telemetry' or 'status'
+
+          // Handle LWT status messages (plain text: "online" or "offline")
+          if (msgType === 'status') {
+            const status = message.toString().trim();
+            console.log('LWT status for', deviceId + ':', status);
+            if (!deviceLastData[deviceId]) {
+              deviceLastData[deviceId] = {};
+            }
+            deviceLastData[deviceId].mqttStatus = status;
+            if (status === 'offline') {
+              // Immediately update UI when device goes offline
+              renderDevicesList();
+              updateStats();
+              if (document.getElementById('page-fleet').classList.contains('active')) {
+                refreshFleetDisplay();
+              }
+              if (currentDeviceId === deviceId) {
+                updateDeviceUI(deviceLastData[deviceId]);
+              }
+            }
+            return;
+          }
+
           const data = JSON.parse(message.toString());
 
           // Handle settings response separately
@@ -4066,6 +4093,7 @@
           const currentState = data.state;
 
           data.lastSeen = Date.now();
+          data.mqttStatus = 'online'; // Receiving telemetry proves device is online
           deviceLastData[deviceId] = data;
 
           // Sync firmware version and status to database
@@ -5563,7 +5591,7 @@
 
       listEl.innerHTML = filtered.map(device => {
         const data = deviceLastData[device.device_id] || {};
-        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
         const isFault = isOnline && data.state === 'FAULT';
         const isPending = !device.is_registered;
 
@@ -5609,7 +5637,7 @@
 
       tableBodyEl.innerHTML = filtered.map(device => {
         const data = deviceLastData[device.device_id] || {};
-        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
         const isFault = isOnline && data.state === 'FAULT';
         const isPending = !device.is_registered;
 
@@ -5685,7 +5713,7 @@
         }
 
         const data = deviceLastData[device.device_id] || {};
-        const isOnline = data.lastSeen && (Date.now() - data.lastSeen < 15000);
+        const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
 
         if (isOnline) {
           online++;
