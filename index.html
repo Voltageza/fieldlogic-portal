@@ -74,6 +74,11 @@
         document.getElementById('settings-user-email').textContent = currentUser ? currentUser.email : '';
         loadTelegramStatus();
         loadNotificationHistory();
+        // Show admin password settings only for admins
+        var adminPwSection = document.getElementById('admin-password-settings');
+        if (adminPwSection) {
+          adminPwSection.style.display = isAdmin ? 'block' : 'none';
+        }
       } else if (pageId !== 'device' && typeof disconnectMQTT === 'function') {
         disconnectMQTT();
       }
@@ -2664,6 +2669,29 @@
           <p style="color: var(--text-secondary);">No alerts sent yet.</p>
         </div>
       </div>
+
+      <!-- Admin Password Settings (Admin Only) -->
+      <div class="settings-card" id="admin-password-settings" style="display: none; margin-top: 24px;">
+        <h3>Admin Password</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+          This password protects Threshold and Fault Delay settings across all devices.
+        </p>
+
+        <div id="admin-pw-error" class="alert alert-error" style="display: none;"></div>
+        <div id="admin-pw-success" class="alert alert-success" style="display: none;"></div>
+
+        <form onsubmit="handleChangeAdminPassword(event)">
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" class="form-input" id="new-admin-password" placeholder="Enter new admin password" required minlength="4">
+          </div>
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <input type="password" class="form-input" id="confirm-admin-password" placeholder="Confirm new password" required minlength="4">
+          </div>
+          <button type="submit" class="btn btn-primary" id="btn-change-admin-pw">Change Password</button>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -3220,6 +3248,25 @@
     </div>
   </div>
 
+  <!-- Admin Password Modal -->
+  <div class="modal-overlay" id="admin-password-modal">
+    <div class="modal" style="max-width: 400px;">
+      <h2>Admin Authentication</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 20px;">Enter the admin password to modify protected settings.</p>
+      <div id="admin-password-error" class="alert alert-error" style="display: none;"></div>
+      <form onsubmit="handleAdminPasswordSubmit(event)">
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" class="form-input" id="admin-password-input" placeholder="Enter admin password" required>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="cancelAdminPassword()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Unlock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -3246,6 +3293,128 @@
     var mqttClient = null;
     var currentDeviceId = null;
     var deviceLastData = {};
+
+    // Admin password protection state
+    var adminUnlocked = false;
+    var adminPasswordCallback = null;
+    var cachedAdminPassword = null;
+
+    // Fetch admin password from Supabase
+    async function fetchAdminPassword() {
+      if (cachedAdminPassword) return cachedAdminPassword;
+      try {
+        const { data, error } = await supabaseClient
+          .from('portal_settings')
+          .select('admin_password')
+          .eq('id', 1)
+          .single();
+        if (error) throw error;
+        cachedAdminPassword = data.admin_password;
+        return cachedAdminPassword;
+      } catch (e) {
+        console.error('Error fetching admin password:', e);
+        return null;
+      }
+    }
+
+    // Prompt for admin password before protected action
+    function requireAdminPassword(callback) {
+      if (adminUnlocked) {
+        callback();
+        return;
+      }
+      adminPasswordCallback = callback;
+      document.getElementById('admin-password-input').value = '';
+      document.getElementById('admin-password-error').style.display = 'none';
+      showModal('admin-password-modal');
+    }
+
+    // Handle admin password form submission
+    async function handleAdminPasswordSubmit(event) {
+      event.preventDefault();
+      const enteredPassword = document.getElementById('admin-password-input').value;
+      const errorEl = document.getElementById('admin-password-error');
+
+      const correctPassword = await fetchAdminPassword();
+      if (!correctPassword) {
+        errorEl.textContent = 'Could not verify password. Check Supabase connection.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      if (enteredPassword === correctPassword) {
+        adminUnlocked = true;
+        hideModal('admin-password-modal');
+        if (adminPasswordCallback) {
+          adminPasswordCallback();
+          adminPasswordCallback = null;
+        }
+      } else {
+        errorEl.textContent = 'Incorrect password';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    // Cancel admin password prompt
+    function cancelAdminPassword() {
+      adminPasswordCallback = null;
+      hideModal('admin-password-modal');
+    }
+
+    // Change admin password (admin only)
+    async function handleChangeAdminPassword(event) {
+      event.preventDefault();
+      const newPassword = document.getElementById('new-admin-password').value;
+      const confirmPassword = document.getElementById('confirm-admin-password').value;
+      const errorEl = document.getElementById('admin-pw-error');
+      const successEl = document.getElementById('admin-pw-success');
+      const btn = document.getElementById('btn-change-admin-pw');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (newPassword !== confirmPassword) {
+        errorEl.textContent = 'Passwords do not match';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      if (newPassword.length < 4) {
+        errorEl.textContent = 'Password must be at least 4 characters';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const { error } = await supabaseClient
+          .from('portal_settings')
+          .update({ admin_password: newPassword, updated_at: new Date().toISOString() })
+          .eq('id', 1);
+
+        if (error) throw error;
+
+        // Clear cached password so new one is fetched
+        cachedAdminPassword = null;
+        adminUnlocked = false;
+
+        successEl.textContent = 'Admin password changed successfully';
+        successEl.style.display = 'block';
+        document.getElementById('new-admin-password').value = '';
+        document.getElementById('confirm-admin-password').value = '';
+
+        setTimeout(() => { successEl.style.display = 'none'; }, 5000);
+      } catch (e) {
+        console.error('Error changing admin password:', e);
+        errorEl.textContent = 'Failed to change password: ' + e.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Change Password';
+      }
+    }
 
     function initSupabase() {
       // Client should already be created at top of script
@@ -4172,7 +4341,12 @@
       }
     }
 
+    // Password-protected wrapper for threshold settings
     function updateThresholds() {
+      requireAdminPassword(doUpdateThresholds);
+    }
+
+    function doUpdateThresholds() {
       const maxCurrent = parseFloat(document.getElementById('threshold-overcurrent').value);
       const dryCurrent = parseFloat(document.getElementById('threshold-dryrun').value);
       const statusEl = document.getElementById('threshold-status');
@@ -4208,7 +4382,12 @@
       }
     }
 
+    // Password-protected wrapper for delay settings
     function saveDelays() {
+      requireAdminPassword(doSaveDelays);
+    }
+
+    function doSaveDelays() {
       const overcurrentDelay = parseInt(document.getElementById('delay-overcurrent').value);
       const dryrunDelay = parseInt(document.getElementById('delay-dryrun').value);
       const statusEl = document.getElementById('delay-status');
