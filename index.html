@@ -4118,12 +4118,13 @@
       cmdEl.textContent = data.cmd ? 'ACTIVE' : 'INACTIVE';
       cmdEl.className = 'status-badge ' + (data.cmd ? 'active' : 'inactive');
 
-      // Contactor status: CONFIRMED (on + feedback), PENDING (on, no feedback), OFF
+      // Contactor status based on actual DO state (bit 0, active-low: 0=ON)
       const contactorEl = document.getElementById('device-contactor-status');
-      if (data.cmd && data.contactor_confirmed) {
+      const contactorOn = data.do !== undefined && (data.do & 0x01) === 0;
+      if (contactorOn && data.contactor_confirmed) {
         contactorEl.textContent = 'CONFIRMED';
         contactorEl.className = 'status-badge online';
-      } else if (data.cmd) {
+      } else if (contactorOn) {
         contactorEl.textContent = 'PENDING';
         contactorEl.className = 'status-badge active';
       } else {
