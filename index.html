@@ -4183,9 +4183,11 @@
     // STARTUP ANIMATION
     // ============================================
     var startupAnimationActive = false;
+    var startupAnimationTime = 0;
 
     function showStartupAnimation() {
       startupAnimationActive = true;
+      startupAnimationTime = Date.now();
       const seq = document.getElementById('startup-sequence');
       seq.classList.add('visible');
 
@@ -4253,7 +4255,9 @@
       }
 
       // Only hide animation when contactor is off and no longer starting
-      if (!contactorOn && !data.cmd && data.state !== 'RUNNING') {
+      // Grace period: ignore stale telemetry for 5s after animation starts
+      const elapsed = Date.now() - startupAnimationTime;
+      if (elapsed > 5000 && !contactorOn && !data.cmd && data.state !== 'RUNNING') {
         hideStartupAnimation();
       }
     }
