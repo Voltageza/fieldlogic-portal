@@ -4221,15 +4221,17 @@
       const stepCurrent = document.getElementById('step-current');
       const stepRunning = document.getElementById('step-running');
 
+      const contactorOn = data.do !== undefined && (data.do & 0x01) === 0;
+
       // Step 1: Start command active
-      if (data.cmd) {
+      if (data.cmd || contactorOn) {
         stepCommand.className = 'startup-step complete';
       }
 
       // Step 2: Contactor confirmed via DI4
       if (data.contactor_confirmed) {
         stepContactor.className = 'startup-step complete';
-      } else if (data.cmd) {
+      } else if (contactorOn) {
         stepContactor.className = 'startup-step active';
       }
 
@@ -4250,8 +4252,8 @@
         stepRunning.className = 'startup-step active';
       }
 
-      // Cancel animation if stopped or faulted
-      if (!data.cmd || data.state === 'FAULT') {
+      // Only hide animation when contactor is off and no longer starting
+      if (!contactorOn && !data.cmd && data.state !== 'RUNNING') {
         hideStartupAnimation();
       }
     }
