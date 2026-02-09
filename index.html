@@ -2481,7 +2481,7 @@
               <p style="font-size: 12px; color: var(--text-secondary);">Trips on high current</p>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="protection-overcurrent" checked onchange="protectionChanged()">
+              <input type="checkbox" id="protection-overcurrent" checked>
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -2491,10 +2491,12 @@
               <p style="font-size: 12px; color: var(--text-secondary);">Trips on low current</p>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="protection-dryrun" checked onchange="protectionChanged()">
+              <input type="checkbox" id="protection-dryrun" checked>
               <span class="toggle-slider"></span>
             </label>
           </div>
+          <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="saveProtection()">Save Protection</button>
+          <p id="protection-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
         </div>
 
         <!-- Threshold Settings Card -->
@@ -3359,9 +3361,6 @@
     function cancelAdminPassword() {
       adminPasswordCallback = null;
       hideModal('admin-password-modal');
-      // Revert protection checkboxes if they were changed
-      document.getElementById('protection-overcurrent').checked = prevProtectionOvercurrent;
-      document.getElementById('protection-dryrun').checked = prevProtectionDryrun;
     }
 
     // Change admin password (admin only)
@@ -4334,26 +4333,15 @@
     // ============================================
     // PROTECTION FUNCTIONS
     // ============================================
-    // Store previous protection state to revert on cancel
-    var prevProtectionOvercurrent = true;
-    var prevProtectionDryrun = true;
-
-    function protectionChanged() {
-      // Save current state before prompting so we can revert on cancel
-      const ocEl = document.getElementById('protection-overcurrent');
-      const drEl = document.getElementById('protection-dryrun');
-      requireAdminPassword(function() {
-        // Password accepted - send the new values
-        prevProtectionOvercurrent = ocEl.checked;
-        prevProtectionDryrun = drEl.checked;
-        doUpdateProtection();
-      });
-      // If user cancels, revert checkboxes via cancelAdminPassword override below
+    // Password-protected wrapper for protection settings
+    function saveProtection() {
+      requireAdminPassword(doSaveProtection);
     }
 
-    function doUpdateProtection() {
+    function doSaveProtection() {
       const overcurrent = document.getElementById('protection-overcurrent').checked;
       const dryrun = document.getElementById('protection-dryrun').checked;
+      const statusEl = document.getElementById('protection-status');
 
       const cmd = JSON.stringify({
         command: 'SET_PROTECTION',
@@ -4365,6 +4353,12 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent protection command:', cmd);
+        statusEl.textContent = 'Protection settings saved to device';
+        statusEl.style.color = 'var(--success)';
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } else {
+        statusEl.textContent = 'Not connected to device';
+        statusEl.style.color = 'var(--danger)';
       }
     }
 
@@ -4488,11 +4482,9 @@
       // Protection settings
       if (data.overcurrent_protection !== undefined) {
         document.getElementById('protection-overcurrent').checked = data.overcurrent_protection;
-        prevProtectionOvercurrent = data.overcurrent_protection;
       }
       if (data.dryrun_protection !== undefined) {
         document.getElementById('protection-dryrun').checked = data.dryrun_protection;
-        prevProtectionDryrun = data.dryrun_protection;
       }
       // Threshold settings from telemetry
       if (data.max_current !== undefined) {
