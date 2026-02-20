@@ -4546,6 +4546,13 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent protection command:', cmd);
+        // Update cached data so tab switching shows saved values
+        if (isEve && window.eveProtectionData) {
+          var pKey = 'p' + (window.eveActiveProtectionTab || 1);
+          if (!window.eveProtectionData[pKey]) window.eveProtectionData[pKey] = {};
+          window.eveProtectionData[pKey].overcurrent_enabled = overcurrent;
+          window.eveProtectionData[pKey].dryrun_enabled = dryrun;
+        }
         statusEl.textContent = 'Protection settings saved' + (isEve ? ' (Pump ' + (window.eveActiveProtectionTab || 1) + ')' : '');
         statusEl.style.color = 'var(--success)';
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
@@ -4616,6 +4623,13 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent thresholds command:', cmd);
+        // Update cached data so tab switching shows saved values
+        if (isEve && window.eveProtectionData) {
+          var pKey = 'p' + (window.eveActiveProtectionTab || 1);
+          if (!window.eveProtectionData[pKey]) window.eveProtectionData[pKey] = {};
+          window.eveProtectionData[pKey].max_current = maxCurrent;
+          window.eveProtectionData[pKey].dry_current = dryCurrent;
+        }
         statusEl.textContent = 'Thresholds saved' + (isEve ? ' (Pump ' + (window.eveActiveProtectionTab || 1) + ')' : '');
         statusEl.style.color = 'var(--success)';
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
@@ -4660,6 +4674,13 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent delays command:', cmd);
+        // Update cached data so tab switching shows saved values
+        if (isEve && window.eveProtectionData) {
+          var pKey = 'p' + (window.eveActiveProtectionTab || 1);
+          if (!window.eveProtectionData[pKey]) window.eveProtectionData[pKey] = {};
+          window.eveProtectionData[pKey].overcurrent_delay_s = overcurrentDelay;
+          window.eveProtectionData[pKey].dryrun_delay_s = dryrunDelay;
+        }
         statusEl.textContent = 'Delays saved' + (isEve ? ' (Pump ' + (window.eveActiveProtectionTab || 1) + ')' : '');
         statusEl.style.color = 'var(--success)';
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
