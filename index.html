@@ -3800,23 +3800,36 @@
         const isDecommissioned = device.decommissioned === true;
         const isOnline = !isDecommissioned && data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
 
+        const isEve = data.hardware_type === 'EVE_ESP32S3';
+
         let state, stateClass;
         if (isDecommissioned) {
           state = 'DECOMMISSIONED';
           stateClass = 'decommissioned';
         } else if (isOnline) {
-          state = data.state || 'STOPPED';
-          stateClass = state.toLowerCase();
+          if (isEve) {
+            const ps = [data.s1, data.s2, data.s3];
+            if (ps.some(s => s === 'FAULT'))        { state = 'FAULT';   stateClass = 'fault'; }
+            else if (ps.some(s => s === 'RUNNING')) { state = 'RUNNING'; stateClass = 'running'; }
+            else                                    { state = 'STOPPED'; stateClass = 'stopped'; }
+          } else {
+            state = data.state || 'STOPPED';
+            stateClass = state.toLowerCase();
+          }
         } else {
           state = 'OFFLINE';
           stateClass = 'offline';
         }
 
-        const voltageAvg = isOnline && data.Va !== undefined
-          ? ((data.Va + data.Vb + data.Vc) / 3).toFixed(0)
+        const voltageAvg = isOnline
+          ? (isEve && data.V1 !== undefined
+              ? ((data.V1 + data.V2 + data.V3) / 3).toFixed(0)
+              : (data.Va !== undefined ? ((data.Va + data.Vb + data.Vc) / 3).toFixed(0) : '--'))
           : '--';
-        const currentAvg = isOnline && data.Ia !== undefined
-          ? ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1)
+        const currentAvg = isOnline
+          ? (isEve && data.I1 !== undefined
+              ? ((data.I1 + data.I2 + data.I3) / 3).toFixed(1)
+              : (data.Ia !== undefined ? ((data.Ia + data.Ib + data.Ic) / 3).toFixed(1) : '--'))
           : '--';
 
         // Show owner email in admin view
@@ -3864,8 +3877,15 @@
         const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
         if (isOnline) {
           online++;
-          if (data.state === 'RUNNING') running++;
-          if (data.state === 'FAULT') faults++;
+          const isEveDevice = data.hardware_type === 'EVE_ESP32S3';
+          if (isEveDevice) {
+            const ps = [data.s1, data.s2, data.s3];
+            if (ps.some(s => s === 'RUNNING')) running++;
+            if (ps.some(s => s === 'FAULT')) faults++;
+          } else {
+            if (data.state === 'RUNNING') running++;
+            if (data.state === 'FAULT') faults++;
+          }
         }
       });
 
