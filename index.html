@@ -3757,13 +3757,13 @@
           // Admin view: get all devices with user email
           query = supabaseClient
             .from('devices')
-            .select('*, user_profiles(email, full_name)')
+            .select('*, user_profiles(email, full_name), hardware_types(type_code)')
             .order('created_at', { ascending: false });
         } else {
           // Normal view: only user's devices
           query = supabaseClient
             .from('devices')
-            .select('*')
+            .select('*, hardware_types(type_code)')
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: false });
         }
@@ -4188,8 +4188,12 @@
       document.getElementById('device-id-display').textContent = 'ID: ' + deviceId;
       document.getElementById('rename-device-name').value = device.name || '';
 
-      // Reset UI
-      updateDeviceUI({});
+      // Reset UI — seed hardware_type from Supabase so Eve UI shows immediately
+      const cachedData = deviceLastData[deviceId] || {};
+      if (!cachedData.hardware_type && device.hardware_types) {
+        cachedData.hardware_type = device.hardware_types.type_code;
+      }
+      updateDeviceUI(cachedData);
 
       showPage('device');
 
