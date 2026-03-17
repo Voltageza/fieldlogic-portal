@@ -176,19 +176,35 @@ async function handleTelegramWebhook(update: any): Promise<Response> {
   return new Response("OK");
 }
 
-// Handle notification from ESP32 device (only needs device_id)
+// Build fault alert message
+function buildFaultMessage(device_name: string, device_id: string, pump?: number, fault?: string, current?: number): string {
+  const timestamp = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
+  const pumpLine = pump ? `Pump: <b>${pump}</b>\n` : "";
+  const faultLine = fault ? `Fault: <b>${fault}</b>${current !== undefined ? ` (${Number(current).toFixed(1)}A)` : ""}\n` : "";
+  return (
+    `🚨 <b>FAULT ALERT</b>\n\n` +
+    `Device: <b>${device_name}</b>\n` +
+    `ID: ${device_id}\n` +
+    pumpLine +
+    faultLine +
+    `Time: ${timestamp}\n\n` +
+    `Open FieldLogic to view details and reset.`
+  );
+}
+
+// Handle notification from ESP32 device
 async function handleDeviceFault(data: any): Promise<Response> {
-  const { device_id } = data;
+  const { device_id, pump, fault, current } = data;
 
   if (!device_id) {
     return Response.json({ success: false, error: "Missing device_id" });
   }
 
-  console.log("Fault notification for device:", device_id);
+  console.log("Fault notification for device:", device_id, "pump:", pump, "fault:", fault);
 
-  // Look up all users who have this device registered
+  // Look up device — check for group notification_chat_id first
   const deviceRecords = await supabaseQuery("devices", "GET", {
-    select: "user_id,name",
+    select: "user_id,name,notification_chat_id,last_fault_notification",
     eq: { device_id },
   });
 
@@ -198,71 +214,54 @@ async function handleDeviceFault(data: any): Promise<Response> {
 
   let notificationsSent = 0;
 
-  // Send notification to each user who owns this device
   for (const device of deviceRecords) {
-    const user_id = device.user_id;
     const device_name = device.name || device_id;
 
-    // Get user's Telegram info
-    const profile = await supabaseQuery("user_profiles", "GET", {
-      select: "telegram_chat_id,telegram_verified",
-      eq: { id: user_id },
-      single: true,
-    });
-
-    if (!profile?.telegram_verified || !profile?.telegram_chat_id) {
-      console.log("User has no linked Telegram:", user_id);
-      continue;
+    // Rate limiting: 5 minute cooldown per device
+    if (device.last_fault_notification) {
+      const elapsed = Date.now() - new Date(device.last_fault_notification).getTime();
+      if (elapsed < 5 * 60 * 1000) {
+        console.log("Rate limited for device:", device_id);
+        return Response.json({ success: false, error: "Rate limited (5min cooldown)" });
+      }
     }
 
-    // Check notification preferences
-    const prefs = await supabaseQuery("notification_preferences", "GET", {
-      select: "telegram_fault_enabled,last_fault_notification,notification_cooldown_minutes",
-      eq: { user_id, device_id },
-      single: true,
-    });
+    const message = buildFaultMessage(device_name, device_id, pump, fault, current);
+    let chatId: string | null = null;
 
-    if (prefs?.telegram_fault_enabled === false) {
-      console.log("Notifications disabled for user:", user_id);
-      continue;
+    // Priority 1: Device has a group notification_chat_id (Telegram group)
+    if (device.notification_chat_id) {
+      chatId = device.notification_chat_id;
+      console.log("Sending to device group chat:", chatId);
     }
+    // Priority 2: Fall back to device owner's personal Telegram
+    else {
+      const profile = await supabaseQuery("user_profiles", "GET", {
+        select: "telegram_chat_id,telegram_verified",
+        eq: { id: device.user_id },
+        single: true,
+      });
 
-    // Rate limiting
-    const cooldownMinutes = prefs?.notification_cooldown_minutes ?? 15;
-    if (prefs?.last_fault_notification) {
-      const elapsed = Date.now() - new Date(prefs.last_fault_notification).getTime();
-      if (elapsed < cooldownMinutes * 60 * 1000) {
-        console.log("Rate limited for user:", user_id);
+      if (profile?.telegram_verified && profile?.telegram_chat_id) {
+        chatId = profile.telegram_chat_id;
+        console.log("Sending to user personal chat:", chatId);
+      } else {
+        console.log("No notification target for device:", device_id);
         continue;
       }
     }
 
-    // Send notification
-    const timestamp = new Date().toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" });
-    const message =
-      `🚨 <b>FAULT ALERT</b>\n\n` +
-      `Device: <b>${device_name}</b>\n` +
-      `ID: ${device_id}\n` +
-      `Status: <b>FAULT</b>\n` +
-      `Time: ${timestamp}\n\n` +
-      `Open FieldLogic to view details and reset.`;
+    await sendTelegram(chatId, message);
 
-    await sendTelegram(profile.telegram_chat_id, message);
-
-    // Update last notification time
-    await fetch(`${SUPABASE_URL}/rest/v1/notification_preferences`, {
-      method: "POST",
+    // Update last fault notification time on the device
+    await fetch(`${SUPABASE_URL}/rest/v1/devices?device_id=eq.${device_id}&user_id=eq.${device.user_id}`, {
+      method: "PATCH",
       headers: {
         "apikey": SUPABASE_SERVICE_KEY,
         "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
         "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates",
       },
-      body: JSON.stringify({
-        user_id,
-        device_id,
-        last_fault_notification: new Date().toISOString()
-      }),
+      body: JSON.stringify({ last_fault_notification: new Date().toISOString() }),
     });
 
     // Log notification
@@ -274,13 +273,13 @@ async function handleDeviceFault(data: any): Promise<Response> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        user_id,
+        user_id: device.user_id,
         device_id,
         device_name,
         notification_type: "fault",
         channel: "telegram",
         message_body: message,
-        device_state: "FAULT",
+        device_state: pump ? `FAULT_P${pump}` : "FAULT",
         status: "sent",
       }),
     });
