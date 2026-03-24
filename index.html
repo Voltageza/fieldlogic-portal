@@ -4918,6 +4918,10 @@
 
           data.lastSeen = Date.now();
           data.mqttStatus = 'online'; // Receiving telemetry proves device is online
+          // Preserve hardware_type seeded from Supabase if MQTT payload doesn't include it
+          if (!data.hardware_type && previousData.hardware_type) {
+            data.hardware_type = previousData.hardware_type;
+          }
           deviceLastData[deviceId] = data;
 
           // Sync firmware version and status to database
