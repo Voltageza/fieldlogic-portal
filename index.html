@@ -2066,7 +2066,14 @@
     .pump-card-title {
       font-size: 13px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: space-between;
     }
+    .pump-card-title .pump-rename-btn {
+      background: none; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 14px; padding: 2px 6px; border-radius: 4px; opacity: 0.6;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    .pump-card-title .pump-rename-btn:hover { opacity: 1; color: var(--accent); }
     .pump-card .state-indicator { margin-bottom: 12px; padding: 8px 16px; font-size: 14px; }
     .pump-card .state-text { font-size: 16px; }
     .pump-reading-row {
@@ -2432,7 +2439,7 @@
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;" id="eve-last-seen">Waiting for data...</p>
         <div class="pump-grid">
           <div class="pump-card" id="eve-card-1">
-            <div class="pump-card-title">Pump 1 (L1)</div>
+            <div class="pump-card-title"><span id="eve-pump-name-1">Pump 1</span><button class="pump-rename-btn" onclick="editPumpName(1)" title="Rename pump">&#9998;</button></div>
             <div class="state-indicator stopped" id="eve-si-1"><div class="state-icon stopped" id="eve-icon-1"></div><div class="state-text stopped" id="eve-st-1">---</div></div>
             <div class="pump-reading-row"><span class="pump-reading-label">Voltage</span><span class="pump-reading-value" id="eve-v1">-- V</span></div>
             <div class="pump-reading-row"><span class="pump-reading-label">Current</span><span class="pump-reading-value" id="eve-i1">-- A</span></div>
@@ -2445,7 +2452,7 @@
             </div>
           </div>
           <div class="pump-card" id="eve-card-2">
-            <div class="pump-card-title">Pump 2 (L2)</div>
+            <div class="pump-card-title"><span id="eve-pump-name-2">Pump 2</span><button class="pump-rename-btn" onclick="editPumpName(2)" title="Rename pump">&#9998;</button></div>
             <div class="state-indicator stopped" id="eve-si-2"><div class="state-icon stopped" id="eve-icon-2"></div><div class="state-text stopped" id="eve-st-2">---</div></div>
             <div class="pump-reading-row"><span class="pump-reading-label">Voltage</span><span class="pump-reading-value" id="eve-v2">-- V</span></div>
             <div class="pump-reading-row"><span class="pump-reading-label">Current</span><span class="pump-reading-value" id="eve-i2">-- A</span></div>
@@ -2458,7 +2465,7 @@
             </div>
           </div>
           <div class="pump-card" id="eve-card-3">
-            <div class="pump-card-title">Pump 3 (L3)</div>
+            <div class="pump-card-title"><span id="eve-pump-name-3">Pump 3</span><button class="pump-rename-btn" onclick="editPumpName(3)" title="Rename pump">&#9998;</button></div>
             <div class="state-indicator stopped" id="eve-si-3"><div class="state-icon stopped" id="eve-icon-3"></div><div class="state-text stopped" id="eve-st-3">---</div></div>
             <div class="pump-reading-row"><span class="pump-reading-label">Voltage</span><span class="pump-reading-value" id="eve-v3">-- V</span></div>
             <div class="pump-reading-row"><span class="pump-reading-label">Current</span><span class="pump-reading-value" id="eve-i3">-- A</span></div>
@@ -3251,6 +3258,24 @@
         </div>
         <div class="modal-buttons">
           <button type="button" class="btn btn-secondary" onclick="hideModal('rename-device-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rename Pump Modal -->
+  <div class="modal-overlay" id="rename-pump-modal">
+    <div class="modal">
+      <h2>Rename Pump</h2>
+      <p>Give this pump a friendly name (e.g., "Borehole North").</p>
+      <form onsubmit="handleRenamePump(event)">
+        <div class="form-group">
+          <label>Pump Name</label>
+          <input type="text" class="form-input" id="rename-pump-name" placeholder="e.g., Borehole North">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="hideModal('rename-pump-modal')">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -4195,6 +4220,9 @@
       }
       updateDeviceUI(cachedData);
 
+      // Apply custom pump names
+      applyPumpNames(device.pump_names || {});
+
       showPage('device');
 
       // Subscribe specifically to this device if not already
@@ -4819,6 +4847,55 @@
         hideModal('rename-device-modal');
       } catch (error) {
         alert('Error: ' + error.message);
+      }
+    }
+
+    // --- Pump Rename ---
+    var renamePumpNumber = null;
+
+    function editPumpName(pumpNum) {
+      renamePumpNumber = pumpNum;
+      const device = devices.find(d => d.device_id === currentDeviceId);
+      const pumpNames = (device && device.pump_names) || {};
+      document.getElementById('rename-pump-name').value = pumpNames[pumpNum] || '';
+      showModal('rename-pump-modal');
+    }
+
+    async function handleRenamePump(e) {
+      e.preventDefault();
+      const newName = document.getElementById('rename-pump-name').value.trim();
+      const device = devices.find(d => d.device_id === currentDeviceId);
+      if (!device) return;
+
+      const pumpNames = Object.assign({}, device.pump_names || {});
+      if (newName) {
+        pumpNames[renamePumpNumber] = newName;
+      } else {
+        delete pumpNames[renamePumpNumber];
+      }
+
+      try {
+        const { error } = await supabaseClient
+          .from('devices')
+          .update({ pump_names: pumpNames })
+          .eq('device_id', currentDeviceId)
+          .eq('user_id', currentUser.id);
+
+        if (error) throw error;
+
+        device.pump_names = pumpNames;
+        applyPumpNames(pumpNames);
+        hideModal('rename-pump-modal');
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function applyPumpNames(pumpNames) {
+      for (var n = 1; n <= 3; n++) {
+        var name = (pumpNames && pumpNames[n]) ? pumpNames[n] : 'Pump ' + n;
+        document.getElementById('eve-pump-name-' + n).textContent = name;
+        document.getElementById('prot-tab-' + n).textContent = name;
       }
     }
 
