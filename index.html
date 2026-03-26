@@ -2524,9 +2524,19 @@
           </div>
         </div>
 
+        <!-- Per-pump tab selector (Eve only, hidden for Adam) -->
+        <div class="settings-card" id="eve-pump-tabs-card" style="display: none;">
+          <h3>Select Pump</h3>
+          <div class="pump-protection-tabs">
+            <div class="pump-protection-tab active" id="prot-tab-1" onclick="switchPumpTab(1)">Pump 1</div>
+            <div class="pump-protection-tab" id="prot-tab-2" onclick="switchPumpTab(2)">Pump 2</div>
+            <div class="pump-protection-tab" id="prot-tab-3" onclick="switchPumpTab(3)">Pump 3</div>
+          </div>
+        </div>
+
         <!-- Schedule Card -->
         <div class="settings-card">
-          <h3>Schedule</h3>
+          <h3>Schedule <span id="schedule-pump-label" style="display:none; font-size: 13px; color: var(--text-secondary); font-weight: 400;"></span></h3>
           <div class="device-pref-item">
             <div>
               <strong>Enable Schedule</strong>
@@ -2560,7 +2570,10 @@
                 <label class="day-checkbox"><input type="checkbox" id="schedule-sat" checked><span>Sat</span></label>
               </div>
             </div>
-            <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top: 12px;">Save Schedule</button>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <button class="btn btn-primary" onclick="saveSchedule()">Save Schedule</button>
+              <button class="btn btn-secondary" id="save-all-schedules-btn" onclick="saveScheduleAll()" style="display: none;">Save All Pumps</button>
+            </div>
           </div>
           <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
             <p id="device-time" style="font-size: 12px; color: var(--text-secondary); margin: 0;">Device time: --:--:--</p>
@@ -2589,16 +2602,6 @@
             <strong>Weekdays:</strong> 22:00 - 06:00<br>
             <strong>Weekends:</strong> All day except 07:00-12:00 &amp; 18:00-20:00<br>
             <span style="color: var(--text-secondary);">Season auto-detected (Jun-Aug = High Demand, Sep-May = Low Demand)</span>
-          </div>
-        </div>
-
-        <!-- Per-pump tab selector (Eve only, hidden for Adam) -->
-        <div class="settings-card" id="eve-pump-tabs-card" style="display: none;">
-          <h3>Select Pump</h3>
-          <div class="pump-protection-tabs">
-            <div class="pump-protection-tab active" id="prot-tab-1" onclick="switchProtectionTab(1)">Pump 1</div>
-            <div class="pump-protection-tab" id="prot-tab-2" onclick="switchProtectionTab(2)">Pump 2</div>
-            <div class="pump-protection-tab" id="prot-tab-3" onclick="switchProtectionTab(3)">Pump 3</div>
           </div>
         </div>
 
@@ -4220,8 +4223,11 @@
       }
       updateDeviceUI(cachedData);
 
-      // Apply custom pump names
+      // Apply custom pump names and set initial schedule pump label
       applyPumpNames(device.pump_names || {});
+      var activeTab = window.eveActiveProtectionTab || 1;
+      var pn = (device.pump_names && device.pump_names[activeTab]) ? device.pump_names[activeTab] : 'Pump ' + activeTab;
+      document.getElementById('schedule-pump-label').textContent = '- ' + pn;
 
       showPage('device');
 
@@ -4264,6 +4270,8 @@
       document.getElementById('single-pump-ui').style.display = isEve ? 'none' : 'block';
       document.getElementById('multi-pump-ui').style.display = isEve ? 'block' : 'none';
       document.getElementById('eve-pump-tabs-card').style.display = isEve ? 'block' : 'none';
+      document.getElementById('schedule-pump-label').style.display = isEve ? 'inline' : 'none';
+      document.getElementById('save-all-schedules-btn').style.display = isEve ? 'inline-block' : 'none';
 
       if (isEve) {
         updateEveUI(data, isOnline);
@@ -4513,12 +4521,10 @@
       // Just visual toggle, actual save happens with saveSchedule()
     }
 
-    function saveSchedule() {
+    function buildScheduleCmd(pumpNum) {
       const enabled = document.getElementById('schedule-enabled').checked;
       const start = document.getElementById('schedule-start').value.split(':');
       const end = document.getElementById('schedule-end').value.split(':');
-
-      // Calculate days bitmask from checkboxes
       let days = 0;
       if (document.getElementById('schedule-sun').checked) days |= 1;
       if (document.getElementById('schedule-mon').checked) days |= 2;
@@ -4527,8 +4533,7 @@
       if (document.getElementById('schedule-thu').checked) days |= 16;
       if (document.getElementById('schedule-fri').checked) days |= 32;
       if (document.getElementById('schedule-sat').checked) days |= 64;
-
-      const cmd = JSON.stringify({
+      var obj = {
         command: 'SET_SCHEDULE',
         enabled: enabled,
         start_hour: parseInt(start[0]),
@@ -4536,13 +4541,32 @@
         end_hour: parseInt(end[0]),
         end_minute: parseInt(end[1]),
         days: days
-      });
+      };
+      if (pumpNum) obj.pump = pumpNum;
+      return JSON.stringify(obj);
+    }
 
+    function saveSchedule() {
+      var isEve = isCurrentDeviceEve();
+      var cmd = buildScheduleCmd(isEve ? (window.eveActiveProtectionTab || 1) : null);
       if (mqttClient && mqttClient.connected && currentDeviceId) {
-        const topic = 'fieldlink/' + currentDeviceId + '/command';
+        var topic = 'fieldlink/' + currentDeviceId + '/command';
         mqttClient.publish(topic, cmd);
         console.log('Sent schedule command:', cmd);
-        alert('Schedule saved');
+        var label = isEve ? 'Pump ' + (window.eveActiveProtectionTab || 1) + ' schedule saved' : 'Schedule saved';
+        alert(label);
+      } else {
+        alert('Not connected to device');
+      }
+    }
+
+    function saveScheduleAll() {
+      var cmd = buildScheduleCmd(null);  // No pump = all pumps
+      if (mqttClient && mqttClient.connected && currentDeviceId) {
+        var topic = 'fieldlink/' + currentDeviceId + '/command';
+        mqttClient.publish(topic, cmd);
+        console.log('Sent schedule-all command:', cmd);
+        alert('Schedule saved for all pumps');
       } else {
         alert('Not connected to device');
       }
@@ -4554,11 +4578,6 @@
     function toggleRuraflex() {
       const enabled = document.getElementById('ruraflex-enabled').checked;
       document.getElementById('ruraflex-info').style.display = enabled ? 'block' : 'none';
-
-      // Disable custom schedule when Ruraflex is enabled
-      if (enabled) {
-        document.getElementById('schedule-enabled').checked = false;
-      }
 
       const cmd = JSON.stringify({
         command: 'SET_RURAFLEX',
@@ -4621,24 +4640,56 @@
 
     window.eveActiveProtectionTab = 1;
 
-    function switchProtectionTab(n) {
+    function switchPumpTab(n) {
       window.eveActiveProtectionTab = n;
       for (var i = 1; i <= 3; i++) {
         document.getElementById('prot-tab-' + i).className = 'pump-protection-tab' + (i === n ? ' active' : '');
       }
-      // Reload protection values from cached settings data
+      // Update pump label on schedule card
+      var pumpNames = null;
+      var device = devices.find(function(d) { return d.device_id === currentDeviceId; });
+      if (device) pumpNames = device.pump_names;
+      var pumpLabel = (pumpNames && pumpNames[n]) ? pumpNames[n] : 'Pump ' + n;
+      document.getElementById('schedule-pump-label').textContent = '- ' + pumpLabel;
+
+      // Reload protection + schedule values from cached settings data
       if (window.eveProtectionData) {
         var pd = window.eveProtectionData['p' + n];
         if (pd) {
+          // Protection
           document.getElementById('protection-overcurrent').checked = pd.overcurrent_enabled;
           document.getElementById('protection-dryrun').checked = pd.dryrun_enabled;
           document.getElementById('threshold-overcurrent').value = pd.max_current;
           document.getElementById('threshold-dryrun').value = pd.dry_current;
           document.getElementById('delay-overcurrent').value = pd.overcurrent_delay_s;
           document.getElementById('delay-dryrun').value = pd.dryrun_delay_s;
+          // Schedule (per-pump from new firmware)
+          if (pd.sch_en !== undefined) {
+            document.getElementById('schedule-enabled').checked = pd.sch_en;
+          }
+          if (pd.sch_sH !== undefined && pd.sch_sM !== undefined) {
+            document.getElementById('schedule-start').value =
+              String(pd.sch_sH).padStart(2, '0') + ':' + String(pd.sch_sM).padStart(2, '0');
+          }
+          if (pd.sch_eH !== undefined && pd.sch_eM !== undefined) {
+            document.getElementById('schedule-end').value =
+              String(pd.sch_eH).padStart(2, '0') + ':' + String(pd.sch_eM).padStart(2, '0');
+          }
+          if (pd.sch_days !== undefined) {
+            document.getElementById('schedule-sun').checked = (pd.sch_days & 1) !== 0;
+            document.getElementById('schedule-mon').checked = (pd.sch_days & 2) !== 0;
+            document.getElementById('schedule-tue').checked = (pd.sch_days & 4) !== 0;
+            document.getElementById('schedule-wed').checked = (pd.sch_days & 8) !== 0;
+            document.getElementById('schedule-thu').checked = (pd.sch_days & 16) !== 0;
+            document.getElementById('schedule-fri').checked = (pd.sch_days & 32) !== 0;
+            document.getElementById('schedule-sat').checked = (pd.sch_days & 64) !== 0;
+          }
         }
       }
     }
+
+    // Backward compat alias
+    function switchProtectionTab(n) { switchPumpTab(n); }
 
     // Password-protected wrapper for threshold settings
     function updateThresholds() {
@@ -4744,30 +4795,6 @@
 
     // Update UI from telemetry data
     function updateDeviceSettings(data) {
-      // Schedule settings
-      if (data.schedule_enabled !== undefined) {
-        document.getElementById('schedule-enabled').checked = data.schedule_enabled;
-      }
-      if (data.schedule_start_hour !== undefined && data.schedule_start_minute !== undefined) {
-        const startH = String(data.schedule_start_hour).padStart(2, '0');
-        const startM = String(data.schedule_start_minute).padStart(2, '0');
-        document.getElementById('schedule-start').value = startH + ':' + startM;
-      }
-      if (data.schedule_end_hour !== undefined && data.schedule_end_minute !== undefined) {
-        const endH = String(data.schedule_end_hour).padStart(2, '0');
-        const endM = String(data.schedule_end_minute).padStart(2, '0');
-        document.getElementById('schedule-end').value = endH + ':' + endM;
-      }
-      if (data.schedule_days !== undefined) {
-        const days = data.schedule_days;
-        document.getElementById('schedule-sun').checked = (days & 1) !== 0;
-        document.getElementById('schedule-mon').checked = (days & 2) !== 0;
-        document.getElementById('schedule-tue').checked = (days & 4) !== 0;
-        document.getElementById('schedule-wed').checked = (days & 8) !== 0;
-        document.getElementById('schedule-thu').checked = (days & 16) !== 0;
-        document.getElementById('schedule-fri').checked = (days & 32) !== 0;
-        document.getElementById('schedule-sat').checked = (days & 64) !== 0;
-      }
       // Device time display (from telemetry "time" or GET_SETTINGS "current_time")
       if (data.time || data.current_time) {
         document.getElementById('device-time').textContent = 'Device time: ' + (data.time || data.current_time);
@@ -4777,13 +4804,12 @@
         document.getElementById('ruraflex-enabled').checked = data.ruraflex_enabled;
         document.getElementById('ruraflex-info').style.display = data.ruraflex_enabled ? 'block' : 'none';
       }
-      // Protection settings - handle both Adam (flat) and Eve (per-pump p1/p2/p3)
+      // Protection + schedule settings - handle both Adam (flat) and Eve (per-pump p1/p2/p3)
       if (data.p1 && data.p2 && data.p3) {
-        // Eve per-pump protection: use pump 1 values for the shared UI fields
-        // (config modal shows the active pump tab's values)
         var activeTab = window.eveActiveProtectionTab || 1;
         var pd = data['p' + activeTab];
         if (pd) {
+          // Protection
           if (pd.overcurrent_enabled !== undefined)
             document.getElementById('protection-overcurrent').checked = pd.overcurrent_enabled;
           if (pd.dryrun_enabled !== undefined)
@@ -4796,9 +4822,46 @@
             document.getElementById('delay-overcurrent').value = pd.overcurrent_delay_s;
           if (pd.dryrun_delay_s !== undefined)
             document.getElementById('delay-dryrun').value = pd.dryrun_delay_s;
+          // Per-pump schedule (new firmware)
+          if (pd.sch_en !== undefined)
+            document.getElementById('schedule-enabled').checked = pd.sch_en;
+          if (pd.sch_sH !== undefined && pd.sch_sM !== undefined)
+            document.getElementById('schedule-start').value =
+              String(pd.sch_sH).padStart(2, '0') + ':' + String(pd.sch_sM).padStart(2, '0');
+          if (pd.sch_eH !== undefined && pd.sch_eM !== undefined)
+            document.getElementById('schedule-end').value =
+              String(pd.sch_eH).padStart(2, '0') + ':' + String(pd.sch_eM).padStart(2, '0');
+          if (pd.sch_days !== undefined) {
+            document.getElementById('schedule-sun').checked = (pd.sch_days & 1) !== 0;
+            document.getElementById('schedule-mon').checked = (pd.sch_days & 2) !== 0;
+            document.getElementById('schedule-tue').checked = (pd.sch_days & 4) !== 0;
+            document.getElementById('schedule-wed').checked = (pd.sch_days & 8) !== 0;
+            document.getElementById('schedule-thu').checked = (pd.sch_days & 16) !== 0;
+            document.getElementById('schedule-fri').checked = (pd.sch_days & 32) !== 0;
+            document.getElementById('schedule-sat').checked = (pd.sch_days & 64) !== 0;
+          }
         }
         window.eveProtectionData = data;
       } else {
+        // Old firmware backward compat: flat schedule keys
+        if (data.schedule_enabled !== undefined)
+          document.getElementById('schedule-enabled').checked = data.schedule_enabled;
+        if (data.schedule_start_hour !== undefined && data.schedule_start_minute !== undefined)
+          document.getElementById('schedule-start').value =
+            String(data.schedule_start_hour).padStart(2, '0') + ':' + String(data.schedule_start_minute).padStart(2, '0');
+        if (data.schedule_end_hour !== undefined && data.schedule_end_minute !== undefined)
+          document.getElementById('schedule-end').value =
+            String(data.schedule_end_hour).padStart(2, '0') + ':' + String(data.schedule_end_minute).padStart(2, '0');
+        if (data.schedule_days !== undefined) {
+          var days = data.schedule_days;
+          document.getElementById('schedule-sun').checked = (days & 1) !== 0;
+          document.getElementById('schedule-mon').checked = (days & 2) !== 0;
+          document.getElementById('schedule-tue').checked = (days & 4) !== 0;
+          document.getElementById('schedule-wed').checked = (days & 8) !== 0;
+          document.getElementById('schedule-thu').checked = (days & 16) !== 0;
+          document.getElementById('schedule-fri').checked = (days & 32) !== 0;
+          document.getElementById('schedule-sat').checked = (days & 64) !== 0;
+        }
         if (data.overcurrent_protection !== undefined) {
           document.getElementById('protection-overcurrent').checked = data.overcurrent_protection;
         }
