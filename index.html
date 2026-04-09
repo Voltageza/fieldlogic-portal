@@ -4949,6 +4949,8 @@
           mqttClient.subscribe('fieldlink/' + device.device_id + '/telemetry');
           mqttClient.subscribe('fieldlink/' + device.device_id + '/status');
         });
+        // Also subscribe to fleet devices if admin has loaded fleet
+        subscribeFleetDevices();
       });
 
       mqttClient.on('message', function(topic, message) {
@@ -6411,6 +6413,14 @@
 
     // ============================================
     // FLEET DASHBOARD (Admin Only)
+    function subscribeFleetDevices() {
+      if (!mqttClient || !mqttClient.connected || fleetDevices.length === 0) return;
+      fleetDevices.forEach(function(d) {
+        mqttClient.subscribe('fieldlink/' + d.device_id + '/telemetry');
+        mqttClient.subscribe('fieldlink/' + d.device_id + '/status');
+      });
+    }
+
     // ============================================
     var fleetDevices = [];
     var fleetSearchFilter = '';
@@ -6474,8 +6484,9 @@
           };
         });
 
-        // Connect MQTT to get real-time data
+        // Connect MQTT to get real-time data for fleet
         if (typeof connectMQTT === 'function') connectMQTT();
+        subscribeFleetDevices();
 
         refreshFleetDisplay();
       } catch (error) {
