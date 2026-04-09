@@ -79,6 +79,8 @@
         if (adminPwSection) {
           adminPwSection.style.display = isAdmin ? 'block' : 'none';
         }
+      } else if (pageId === 'fleet' && typeof connectMQTT === 'function') {
+        connectMQTT();
       } else if (pageId !== 'device' && typeof disconnectMQTT === 'function') {
         disconnectMQTT();
       }
@@ -4963,6 +4965,9 @@
               deviceLastData[deviceId] = {};
             }
             deviceLastData[deviceId].mqttStatus = status;
+            if (status === 'online') {
+              deviceLastData[deviceId].lastSeen = Date.now();
+            }
             if (status === 'offline') {
               // Immediately update UI when device goes offline
               renderDevicesList();
