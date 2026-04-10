@@ -4215,6 +4215,21 @@
       document.getElementById('device-id-display').textContent = 'ID: ' + deviceId;
       document.getElementById('rename-device-name').value = device.name || '';
 
+      // Clear protection form and cache from previous device
+      window.eveProtectionData = null;
+      window.eveActiveProtectionTab = 1;
+      document.getElementById('protection-overcurrent').checked = false;
+      document.getElementById('protection-dryrun').checked = false;
+      document.getElementById('threshold-overcurrent').value = '';
+      document.getElementById('threshold-dryrun').value = '';
+      document.getElementById('delay-overcurrent').value = '';
+      document.getElementById('delay-dryrun').value = '';
+      // Reset pump tab selection to pump 1
+      for (var i = 1; i <= 3; i++) {
+        var tab = document.getElementById('prot-tab-' + i);
+        if (tab) tab.className = 'pump-protection-tab' + (i === 1 ? ' active' : '');
+      }
+
       // Reset UI — seed hardware_type from Supabase so Eve UI shows immediately
       const cachedData = deviceLastData[deviceId] || {};
       if (!cachedData.hardware_type && device.hardware_types) {
