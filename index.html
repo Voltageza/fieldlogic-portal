@@ -2350,6 +2350,19 @@
             <div class="state-text stopped" id="device-state-text">---</div>
           </div>
           <p style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);" id="device-last-seen">Waiting for data...</p>
+          <!-- Adam v4: specific fault type + current when in FAULT -->
+          <div id="device-fault-banner" style="display: none; margin-top: 12px; padding: 12px; background: rgba(255,71,87,0.1); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 600; font-size: 13px;"></div>
+          <!-- Adam v4: avg current + phase imbalance metrics -->
+          <div id="device-metrics-row" style="display: none; margin-top: 12px; gap: 12px; grid-template-columns: 1fr 1fr;">
+            <div style="background: var(--bg-secondary); border-radius: 8px; padding: 10px 12px;">
+              <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Avg Current</div>
+              <div style="font-size: 18px; font-weight: 600; margin-top: 2px;"><span id="device-avg-current">--</span> A</div>
+            </div>
+            <div style="background: var(--bg-secondary); border-radius: 8px; padding: 10px 12px;">
+              <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Imbalance</div>
+              <div style="font-size: 18px; font-weight: 600; margin-top: 2px;"><span id="device-imbalance">--</span> %</div>
+            </div>
+          </div>
         </div>
 
         <div class="phase-readings">
@@ -2630,6 +2643,27 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+          <!-- Adam v4: Phase imbalance + phase loss (hidden for Eve) -->
+          <div class="device-pref-item adam-v4-only">
+            <div>
+              <strong>Phase Imbalance</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Trips when phases deviate from average</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="protection-imbalance" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="device-pref-item adam-v4-only">
+            <div>
+              <strong>Phase Loss</strong>
+              <p style="font-size: 12px; color: var(--text-secondary);">Trips if a phase drops while others run</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="protection-phaseloss" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
           <button class="btn btn-primary" style="margin-top: 16px; width: 100%;" onclick="saveProtection()">Save Protection</button>
           <p id="protection-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;"></p>
         </div>
@@ -2658,6 +2692,27 @@
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <input type="number" id="threshold-dryrun" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="0" max="50" value="0.5">
+                <span style="color: var(--text-secondary);">A</span>
+              </div>
+            </div>
+            <!-- Adam v4 only -->
+            <div class="adam-v4-only" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Phase Imbalance Trip</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Max phase deviation from average (%)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="threshold-imbalance" class="form-input" style="width: 80px; text-align: right;" step="1" min="1" max="100" value="20">
+                <span style="color: var(--text-secondary);">%</span>
+              </div>
+            </div>
+            <div class="adam-v4-only" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Phase Loss Trip</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Phase considered lost below this (A)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="threshold-phaseloss" class="form-input" style="width: 80px; text-align: right;" step="0.1" min="0" max="50" value="1.0">
                 <span style="color: var(--text-secondary);">A</span>
               </div>
             </div>
@@ -2690,6 +2745,27 @@
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <input type="number" id="delay-dryrun" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="0">
+                <span style="color: var(--text-secondary);">s</span>
+              </div>
+            </div>
+            <!-- Adam v4 only -->
+            <div class="adam-v4-only" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Imbalance Delay</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="delay-imbalance" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="5">
+                <span style="color: var(--text-secondary);">s</span>
+              </div>
+            </div>
+            <div class="adam-v4-only" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>Phase Loss Delay</strong>
+                <p style="font-size: 12px; color: var(--text-secondary);">Wait time before trip (0 = immediate)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="delay-phaseloss" class="form-input" style="width: 80px; text-align: right;" step="1" min="0" max="30" value="2">
                 <span style="color: var(--text-secondary);">s</span>
               </div>
             </div>
@@ -4296,6 +4372,28 @@
       document.getElementById('device-state-text').className = 'state-text ' + stateClass;
       document.getElementById('device-state-text').textContent = isOnline ? state : '---';
 
+      // Adam v4 fault banner (fault type + current)
+      const faultBanner = document.getElementById('device-fault-banner');
+      if (isOnline && state === 'FAULT' && data.fault && data.fault !== 'NO_FAULT') {
+        const faultI = (typeof data.faultI === 'number') ? ' @ ' + data.faultI.toFixed(2) + 'A' : '';
+        faultBanner.textContent = 'FAULT: ' + data.fault + faultI;
+        faultBanner.style.display = 'block';
+      } else {
+        faultBanner.style.display = 'none';
+      }
+
+      // Adam v4 metrics row (avg current + imbalance)
+      const metricsRow = document.getElementById('device-metrics-row');
+      if (isOnline && (data.avgI !== undefined || data.imb !== undefined)) {
+        metricsRow.style.display = 'grid';
+        document.getElementById('device-avg-current').textContent =
+          (data.avgI !== undefined) ? data.avgI.toFixed(2) : '--';
+        document.getElementById('device-imbalance').textContent =
+          (data.imb !== undefined) ? data.imb.toFixed(1) : '--';
+      } else {
+        metricsRow.style.display = 'none';
+      }
+
       // Voltages
       document.getElementById('device-voltage-a').textContent = data.Va !== undefined ? data.Va.toFixed(1) : '--';
       document.getElementById('device-voltage-b').textContent = data.Vb !== undefined ? data.Vb.toFixed(1) : '--';
@@ -4608,7 +4706,13 @@
         overcurrent_enabled: overcurrent,
         dryrun_enabled: dryrun
       };
-      if (isEve) cmdObj.pump = window.eveActiveProtectionTab || 1;
+      if (isEve) {
+        cmdObj.pump = window.eveActiveProtectionTab || 1;
+      } else {
+        // Adam v4: phase imbalance + phase loss
+        cmdObj.imbalance_enabled  = document.getElementById('protection-imbalance').checked;
+        cmdObj.phase_loss_enabled = document.getElementById('protection-phaseloss').checked;
+      }
       const cmd = JSON.stringify(cmdObj);
 
       if (mqttClient && mqttClient.connected && currentDeviceId) {
@@ -4685,7 +4789,19 @@
         max_current: maxCurrent,
         dry_current: dryCurrent
       };
-      if (isEve) cmdObj.pump = window.eveActiveProtectionTab || 1;
+      if (isEve) {
+        cmdObj.pump = window.eveActiveProtectionTab || 1;
+      } else {
+        // Adam v4: imbalance % and phase loss current
+        const imbPct = parseFloat(document.getElementById('threshold-imbalance').value);
+        const plCurrent = parseFloat(document.getElementById('threshold-phaseloss').value);
+        if (!isNaN(imbPct) && imbPct >= 1 && imbPct <= 100) {
+          cmdObj.imbalance_pct = imbPct;
+        }
+        if (!isNaN(plCurrent) && plCurrent >= 0 && plCurrent <= 50) {
+          cmdObj.phase_loss_current = plCurrent;
+        }
+      }
       const cmd = JSON.stringify(cmdObj);
 
       if (mqttClient && mqttClient.connected && currentDeviceId) {
@@ -4736,7 +4852,19 @@
         overcurrent_delay_s: overcurrentDelay,
         dryrun_delay_s: dryrunDelay
       };
-      if (isEve) cmdObj.pump = window.eveActiveProtectionTab || 1;
+      if (isEve) {
+        cmdObj.pump = window.eveActiveProtectionTab || 1;
+      } else {
+        // Adam v4: imbalance + phase loss delays
+        const imbDelay = parseInt(document.getElementById('delay-imbalance').value);
+        const plDelay = parseInt(document.getElementById('delay-phaseloss').value);
+        if (!isNaN(imbDelay) && imbDelay >= 0 && imbDelay <= 30) {
+          cmdObj.imbalance_delay_s = imbDelay;
+        }
+        if (!isNaN(plDelay) && plDelay >= 0 && plDelay <= 30) {
+          cmdObj.phase_loss_delay_s = plDelay;
+        }
+      }
       const cmd = JSON.stringify(cmdObj);
 
       if (mqttClient && mqttClient.connected && currentDeviceId) {
@@ -4794,6 +4922,13 @@
         document.getElementById('ruraflex-enabled').checked = data.ruraflex_enabled;
         document.getElementById('ruraflex-info').style.display = data.ruraflex_enabled ? 'block' : 'none';
       }
+      // Adam v4 vs Eve: show/hide Adam-only controls (phase imbalance, phase loss)
+      var isEveDevice = data.hardware_type === 'EVE_ESP32S3';
+      var adamOnlyEls = document.querySelectorAll('.adam-v4-only');
+      for (var i = 0; i < adamOnlyEls.length; i++) {
+        adamOnlyEls[i].style.display = isEveDevice ? 'none' : '';
+      }
+
       // Protection settings - handle both Adam (flat) and Eve (per-pump p1/p2/p3)
       if (data.p1 && data.p2 && data.p3) {
         // Eve per-pump protection: use pump 1 values for the shared UI fields
@@ -4816,10 +4951,15 @@
         }
         window.eveProtectionData = data;
       } else {
-        if (data.overcurrent_protection !== undefined) {
+        // Adam: legacy v3 key was `overcurrent_protection`; v4 uses `overcurrent_enabled`.
+        if (data.overcurrent_enabled !== undefined) {
+          document.getElementById('protection-overcurrent').checked = data.overcurrent_enabled;
+        } else if (data.overcurrent_protection !== undefined) {
           document.getElementById('protection-overcurrent').checked = data.overcurrent_protection;
         }
-        if (data.dryrun_protection !== undefined) {
+        if (data.dryrun_enabled !== undefined) {
+          document.getElementById('protection-dryrun').checked = data.dryrun_enabled;
+        } else if (data.dryrun_protection !== undefined) {
           document.getElementById('protection-dryrun').checked = data.dryrun_protection;
         }
         if (data.max_current !== undefined) {
@@ -4833,6 +4973,25 @@
         }
         if (data.dryrun_delay_s !== undefined) {
           document.getElementById('delay-dryrun').value = data.dryrun_delay_s;
+        }
+        // Adam v4: phase imbalance + phase loss settings
+        if (data.imbalance_enabled !== undefined) {
+          document.getElementById('protection-imbalance').checked = data.imbalance_enabled;
+        }
+        if (data.phase_loss_enabled !== undefined) {
+          document.getElementById('protection-phaseloss').checked = data.phase_loss_enabled;
+        }
+        if (data.imbalance_pct !== undefined) {
+          document.getElementById('threshold-imbalance').value = data.imbalance_pct;
+        }
+        if (data.phase_loss_current !== undefined) {
+          document.getElementById('threshold-phaseloss').value = data.phase_loss_current;
+        }
+        if (data.imbalance_delay_s !== undefined) {
+          document.getElementById('delay-imbalance').value = data.imbalance_delay_s;
+        }
+        if (data.phase_loss_delay_s !== undefined) {
+          document.getElementById('delay-phaseloss').value = data.phase_loss_delay_s;
         }
       }
     }
