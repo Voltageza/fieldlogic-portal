@@ -2409,7 +2409,7 @@
               <button class="btn btn-success" id="device-btn-start" onclick="sendDeviceCommand('START')">Start Pump</button>
               <button class="btn btn-danger" id="device-btn-stop" onclick="sendDeviceCommand('STOP')">Stop Pump</button>
               <button class="btn btn-secondary" id="device-btn-reset" onclick="sendDeviceCommand('RESET')">Reset Fault</button>
-              <button class="btn btn-secondary" onclick="showModal('device-config-modal')">Configure</button>
+              <button class="btn btn-secondary" onclick="openDeviceConfig()">Configure</button>
             </div>
           </div>
           <div class="control-card">
@@ -2484,7 +2484,7 @@
           <button class="btn btn-success" onclick="sendEveAllCommand('START_ALL')">Start All</button>
           <button class="btn btn-danger" onclick="sendEveAllCommand('STOP_ALL')">Stop All</button>
           <button class="btn btn-secondary" onclick="sendEveAllCommand('RESET_ALL')">Reset All</button>
-          <button class="btn btn-secondary" onclick="showModal('device-config-modal')">Configure</button>
+          <button class="btn btn-secondary" onclick="openDeviceConfig()">Configure</button>
         </div>
         <div class="controls-grid">
           <div class="control-card">
@@ -4262,6 +4262,16 @@
       }
     }
 
+    // Opens the Configure modal and re-requests fresh settings from the device
+    // so the per-pump cache (window.eveProtectionData) is rebuilt every time.
+    // Without this, a single missed GET_SETTINGS response on device open would
+    // leave switchProtectionTab() unable to repopulate the shared form fields,
+    // making it look like saves bled across pumps.
+    function openDeviceConfig() {
+      requestDeviceSettings();
+      showModal('device-config-modal');
+    }
+
     function updateDeviceUI(data) {
       const isOnline = data.mqttStatus !== 'offline' && data.lastSeen && (Date.now() - data.lastSeen < 15000);
 
@@ -4644,16 +4654,27 @@
         document.getElementById('prot-tab-' + i).className = 'pump-protection-tab' + (i === n ? ' active' : '');
       }
       // Reload protection values from cached settings data
-      if (window.eveProtectionData) {
-        var pd = window.eveProtectionData['p' + n];
-        if (pd) {
-          document.getElementById('protection-overcurrent').checked = pd.overcurrent_enabled;
-          document.getElementById('protection-dryrun').checked = pd.dryrun_enabled;
-          document.getElementById('threshold-overcurrent').value = pd.max_current;
-          document.getElementById('threshold-dryrun').value = pd.dry_current;
-          document.getElementById('delay-overcurrent').value = pd.overcurrent_delay_s;
-          document.getElementById('delay-dryrun').value = pd.dryrun_delay_s;
-        }
+      var pd = window.eveProtectionData && window.eveProtectionData['p' + n];
+      if (pd) {
+        document.getElementById('protection-overcurrent').checked = pd.overcurrent_enabled;
+        document.getElementById('protection-dryrun').checked = pd.dryrun_enabled;
+        document.getElementById('threshold-overcurrent').value = pd.max_current;
+        document.getElementById('threshold-dryrun').value = pd.dry_current;
+        document.getElementById('delay-overcurrent').value = pd.overcurrent_delay_s;
+        document.getElementById('delay-dryrun').value = pd.dryrun_delay_s;
+      } else {
+        // Cache missing for this pump (GET_SETTINGS response never arrived, or
+        // truncated). Clear the form fields so the previous tab's values can't
+        // be accidentally saved to this pump, and re-request settings so the
+        // next tab switch has real data.
+        console.warn('Eve protection cache missing for p' + n + ' - clearing form and re-requesting GET_SETTINGS');
+        document.getElementById('protection-overcurrent').checked = false;
+        document.getElementById('protection-dryrun').checked = false;
+        document.getElementById('threshold-overcurrent').value = '';
+        document.getElementById('threshold-dryrun').value = '';
+        document.getElementById('delay-overcurrent').value = '';
+        document.getElementById('delay-dryrun').value = '';
+        requestDeviceSettings();
       }
     }
 
