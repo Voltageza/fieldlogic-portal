@@ -2101,6 +2101,20 @@
     }
     .pump-protection-panel { display: none; }
     .pump-protection-panel.active { display: block; }
+    /* Schedule table */
+    .schedule-table { width: 100%; border-collapse: collapse; }
+    .schedule-table th {
+      text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 600;
+      color: var(--text-secondary); border-bottom: 1px solid var(--border-light);
+    }
+    .schedule-table td {
+      padding: 10px 10px; border-bottom: 1px solid var(--border-light);
+      font-size: 13px; vertical-align: middle;
+    }
+    .schedule-table tr:last-child td { border-bottom: none; }
+    .sched-pump-name { font-weight: 600; white-space: nowrap; }
+    .form-input-sm { padding: 6px 8px !important; font-size: 13px !important; width: 100%; min-width: 90px; }
+    .toggle-sm { transform: scale(0.85); transform-origin: center; }
     @media (max-width: 768px) { .pump-grid { grid-template-columns: 1fr; } .aggregate-controls { flex-direction: column; } }
   </style>
 </head>
@@ -2526,8 +2540,23 @@
           </div>
         </div>
 
-        <!-- Schedule Card -->
-        <div class="settings-card">
+        <!-- Active Pumps (Admin only, Eve only) -->
+        <div class="settings-card" id="active-pumps-card" style="display: none;">
+          <h3>Active Pumps</h3>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Set the number of pumps connected to this device. Inactive pumps will be hidden from the user interface.</p>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <select class="form-input" id="active-pumps-select" style="width: auto; min-width: 120px;">
+              <option value="1">1 Pump</option>
+              <option value="2">2 Pumps</option>
+              <option value="3" selected>3 Pumps</option>
+            </select>
+            <button class="btn btn-primary" onclick="saveActivePumps()">Save</button>
+          </div>
+          <p id="active-pumps-status" style="font-size: 12px; margin-top: 8px;"></p>
+        </div>
+
+        <!-- Schedule Card (Adam - single pump) -->
+        <div class="settings-card" id="schedule-card-adam">
           <h3>Schedule</h3>
           <div class="device-pref-item">
             <div>
@@ -2550,22 +2579,51 @@
                 <input type="time" class="form-input" id="schedule-end" value="18:00">
               </div>
             </div>
-            <div class="form-group" style="margin-top: 16px;">
-              <label>Days</label>
-              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                <label class="day-checkbox"><input type="checkbox" id="schedule-sun" checked><span>Sun</span></label>
-                <label class="day-checkbox"><input type="checkbox" id="schedule-mon" checked><span>Mon</span></label>
-                <label class="day-checkbox"><input type="checkbox" id="schedule-tue" checked><span>Tue</span></label>
-                <label class="day-checkbox"><input type="checkbox" id="schedule-wed" checked><span>Wed</span></label>
-                <label class="day-checkbox"><input type="checkbox" id="schedule-thu" checked><span>Thu</span></label>
-                <label class="day-checkbox"><input type="checkbox" id="schedule-fri" checked><span>Fri</span></label>
-                <label class="day-checkbox"><input type="checkbox" id="schedule-sat" checked><span>Sat</span></label>
-              </div>
-            </div>
             <button class="btn btn-primary" onclick="saveSchedule()" style="margin-top: 12px;">Save Schedule</button>
           </div>
           <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
             <p id="device-time" style="font-size: 12px; color: var(--text-secondary); margin: 0;">Device time: --:--:--</p>
+            <button class="btn btn-secondary" onclick="requestDeviceSettings()" style="padding: 4px 12px; font-size: 12px;">Refresh</button>
+          </div>
+        </div>
+
+        <!-- Schedule Card (Eve - multi-pump table) -->
+        <div class="settings-card" id="schedule-card-eve" style="display: none;">
+          <h3>Schedule</h3>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Set individual run times for each pump (applies every day)</p>
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th>Pump</th>
+                <th>Enabled</th>
+                <th>Start</th>
+                <th>End</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="sched-row-1">
+                <td class="sched-pump-name" id="sched-name-1">Pump 1</td>
+                <td><label class="toggle-switch toggle-sm"><input type="checkbox" id="sched-en-1"><span class="toggle-slider"></span></label></td>
+                <td><input type="time" class="form-input form-input-sm" id="sched-start-1" value="06:00"></td>
+                <td><input type="time" class="form-input form-input-sm" id="sched-end-1" value="18:00"></td>
+              </tr>
+              <tr id="sched-row-2">
+                <td class="sched-pump-name" id="sched-name-2">Pump 2</td>
+                <td><label class="toggle-switch toggle-sm"><input type="checkbox" id="sched-en-2"><span class="toggle-slider"></span></label></td>
+                <td><input type="time" class="form-input form-input-sm" id="sched-start-2" value="06:00"></td>
+                <td><input type="time" class="form-input form-input-sm" id="sched-end-2" value="18:00"></td>
+              </tr>
+              <tr id="sched-row-3">
+                <td class="sched-pump-name" id="sched-name-3">Pump 3</td>
+                <td><label class="toggle-switch toggle-sm"><input type="checkbox" id="sched-en-3"><span class="toggle-slider"></span></label></td>
+                <td><input type="time" class="form-input form-input-sm" id="sched-start-3" value="06:00"></td>
+                <td><input type="time" class="form-input form-input-sm" id="sched-end-3" value="18:00"></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="saveAllSchedules()">Save Schedules</button>
+            <p id="device-time-eve" style="font-size: 12px; color: var(--text-secondary); margin: 0;">Device time: --:--:--</p>
             <button class="btn btn-secondary" onclick="requestDeviceSettings()" style="padding: 4px 12px; font-size: 12px;">Refresh</button>
           </div>
         </div>
@@ -4207,7 +4265,7 @@
       }
     }
 
-    function viewDevice(deviceId) {
+    async function viewDevice(deviceId) {
       currentDeviceId = deviceId;
       const device = devices.find(d => d.device_id === deviceId);
 
@@ -4230,10 +4288,29 @@
         if (tab) tab.className = 'pump-protection-tab' + (i === 1 ? ' active' : '');
       }
 
+      // Fetch active_pumps directly from Supabase if not already on device object
+      if (!device.active_pumps && isAdmin) {
+        try {
+          var { data } = await supabaseClient
+            .from('devices')
+            .select('active_pumps')
+            .eq('device_id', deviceId)
+            .limit(1);
+          if (data && data.length > 0 && data[0].active_pumps) {
+            device.active_pumps = data[0].active_pumps;
+          }
+        } catch(e) { console.warn('Could not fetch active_pumps:', e); }
+      }
+
       // Reset UI — seed hardware_type from Supabase so Eve UI shows immediately
       const cachedData = deviceLastData[deviceId] || {};
       if (!cachedData.hardware_type && device.hardware_types) {
         cachedData.hardware_type = device.hardware_types.type_code;
+      }
+      // Seed active_pumps into telemetry cache from Supabase device record
+      if (device.active_pumps) {
+        cachedData._active_pumps = device.active_pumps;
+        deviceLastData[deviceId] = cachedData;
       }
       updateDeviceUI(cachedData);
 
@@ -4269,6 +4346,8 @@
     // making it look like saves bled across pumps.
     function openDeviceConfig() {
       requestDeviceSettings();
+      var data = deviceLastData[currentDeviceId];
+      if (data && data.hardware_type === 'EVE_ESP32S3') applyActivePumps(true);
       showModal('device-config-modal');
     }
 
@@ -4291,6 +4370,13 @@
       document.getElementById('single-pump-ui').style.display = isEve ? 'none' : 'block';
       document.getElementById('multi-pump-ui').style.display = isEve ? 'block' : 'none';
       document.getElementById('eve-pump-tabs-card').style.display = isEve ? 'block' : 'none';
+      // Toggle schedule cards: Adam vs Eve
+      document.getElementById('schedule-card-adam').style.display = isEve ? 'none' : 'block';
+      document.getElementById('schedule-card-eve').style.display = isEve ? 'block' : 'none';
+      // Active pumps admin control (Eve + admin only)
+      document.getElementById('active-pumps-card').style.display = (isEve && isAdmin) ? 'block' : 'none';
+      // Apply active pump visibility
+      if (isEve) applyActivePumps();
 
       if (isEve) {
         updateEveUI(data, isOnline);
@@ -4540,20 +4626,11 @@
       // Just visual toggle, actual save happens with saveSchedule()
     }
 
+    // Adam single-pump schedule save
     function saveSchedule() {
       const enabled = document.getElementById('schedule-enabled').checked;
       const start = document.getElementById('schedule-start').value.split(':');
       const end = document.getElementById('schedule-end').value.split(':');
-
-      // Calculate days bitmask from checkboxes
-      let days = 0;
-      if (document.getElementById('schedule-sun').checked) days |= 1;
-      if (document.getElementById('schedule-mon').checked) days |= 2;
-      if (document.getElementById('schedule-tue').checked) days |= 4;
-      if (document.getElementById('schedule-wed').checked) days |= 8;
-      if (document.getElementById('schedule-thu').checked) days |= 16;
-      if (document.getElementById('schedule-fri').checked) days |= 32;
-      if (document.getElementById('schedule-sat').checked) days |= 64;
 
       const cmd = JSON.stringify({
         command: 'SET_SCHEDULE',
@@ -4562,7 +4639,7 @@
         start_minute: parseInt(start[1]),
         end_hour: parseInt(end[0]),
         end_minute: parseInt(end[1]),
-        days: days
+        days: 127
       });
 
       if (mqttClient && mqttClient.connected && currentDeviceId) {
@@ -4573,6 +4650,34 @@
       } else {
         alert('Not connected to device');
       }
+    }
+
+    // Eve multi-pump schedule save (all pumps at once)
+    function saveAllSchedules() {
+      if (!mqttClient || !mqttClient.connected || !currentDeviceId) {
+        alert('Not connected to device');
+        return;
+      }
+      const topic = 'fieldlink/' + currentDeviceId + '/command';
+      var count = getActivePumps();
+      for (var n = 1; n <= count; n++) {
+        var enabled = document.getElementById('sched-en-' + n).checked;
+        var start = document.getElementById('sched-start-' + n).value.split(':');
+        var end = document.getElementById('sched-end-' + n).value.split(':');
+        var cmd = JSON.stringify({
+          command: 'SET_SCHEDULE',
+          pump: n,
+          enabled: enabled,
+          start_hour: parseInt(start[0]),
+          start_minute: parseInt(start[1]),
+          end_hour: parseInt(end[0]),
+          end_minute: parseInt(end[1]),
+          days: 127
+        });
+        mqttClient.publish(topic, cmd);
+        console.log('Sent schedule for pump ' + n + ':', cmd);
+      }
+      alert('Schedules saved for ' + count + ' pump' + (count > 1 ? 's' : ''));
     }
 
     // ============================================
@@ -4783,43 +4888,40 @@
     // Update UI from telemetry data
     function updateDeviceSettings(data) {
       // Schedule settings — Eve GET_SETTINGS nests schedule per-pump as
-      // p1.sch_en / p1.sch_sH etc. Schedule is shared across all pumps,
-      // so read from p1. Adam uses top-level schedule_enabled etc.
-      var schEnabled = data.schedule_enabled;
-      var schStartH = data.schedule_start_hour;
-      var schStartM = data.schedule_start_minute;
-      var schEndH = data.schedule_end_hour;
-      var schEndM = data.schedule_end_minute;
-      var schDays = data.schedule_days;
-      if (data.p1) {
-        if (schEnabled === undefined) schEnabled = data.p1.sch_en;
-        if (schStartH === undefined) schStartH = data.p1.sch_sH;
-        if (schStartM === undefined) schStartM = data.p1.sch_sM;
-        if (schEndH === undefined) schEndH = data.p1.sch_eH;
-        if (schEndM === undefined) schEndM = data.p1.sch_eM;
-        if (schDays === undefined) schDays = data.p1.sch_days;
-      }
-      if (schEnabled !== undefined) {
-        document.getElementById('schedule-enabled').checked = schEnabled;
-      }
-      if (schStartH !== undefined && schStartM !== undefined) {
-        const startH = String(schStartH).padStart(2, '0');
-        const startM = String(schStartM).padStart(2, '0');
-        document.getElementById('schedule-start').value = startH + ':' + startM;
-      }
-      if (schEndH !== undefined && schEndM !== undefined) {
-        const endH = String(schEndH).padStart(2, '0');
-        const endM = String(schEndM).padStart(2, '0');
-        document.getElementById('schedule-end').value = endH + ':' + endM;
-      }
-      if (schDays !== undefined) {
-        document.getElementById('schedule-sun').checked = (schDays & 1) !== 0;
-        document.getElementById('schedule-mon').checked = (schDays & 2) !== 0;
-        document.getElementById('schedule-tue').checked = (schDays & 4) !== 0;
-        document.getElementById('schedule-wed').checked = (schDays & 8) !== 0;
-        document.getElementById('schedule-thu').checked = (schDays & 16) !== 0;
-        document.getElementById('schedule-fri').checked = (schDays & 32) !== 0;
-        document.getElementById('schedule-sat').checked = (schDays & 64) !== 0;
+      // p1.sch_en / p1.sch_sH etc. Adam uses top-level schedule_enabled etc.
+      if (data.p1 && data.p2 && data.p3) {
+        // Eve: populate schedule table rows
+        for (var pi = 1; pi <= 3; pi++) {
+          var pData = data['p' + pi];
+          if (pData && pData.sch_en !== undefined) {
+            document.getElementById('sched-en-' + pi).checked = pData.sch_en;
+            if (pData.sch_sH !== undefined && pData.sch_sM !== undefined) {
+              document.getElementById('sched-start-' + pi).value = String(pData.sch_sH).padStart(2, '0') + ':' + String(pData.sch_sM).padStart(2, '0');
+            }
+            if (pData.sch_eH !== undefined && pData.sch_eM !== undefined) {
+              document.getElementById('sched-end-' + pi).value = String(pData.sch_eH).padStart(2, '0') + ':' + String(pData.sch_eM).padStart(2, '0');
+            }
+          }
+        }
+        if (data.time || data.current_time) {
+          document.getElementById('device-time-eve').textContent = 'Device time: ' + (data.time || data.current_time);
+        }
+      } else {
+        // Adam: flat schedule fields
+        var schEnabled = data.schedule_enabled;
+        var schStartH = data.schedule_start_hour;
+        var schStartM = data.schedule_start_minute;
+        var schEndH = data.schedule_end_hour;
+        var schEndM = data.schedule_end_minute;
+        if (schEnabled !== undefined) {
+          document.getElementById('schedule-enabled').checked = schEnabled;
+        }
+        if (schStartH !== undefined && schStartM !== undefined) {
+          document.getElementById('schedule-start').value = String(schStartH).padStart(2, '0') + ':' + String(schStartM).padStart(2, '0');
+        }
+        if (schEndH !== undefined && schEndM !== undefined) {
+          document.getElementById('schedule-end').value = String(schEndH).padStart(2, '0') + ':' + String(schEndM).padStart(2, '0');
+        }
       }
       // Device time display (from telemetry "time" or GET_SETTINGS "current_time")
       if (data.time || data.current_time) {
@@ -4949,6 +5051,74 @@
         var name = (pumpNames && pumpNames[n]) ? pumpNames[n] : 'Pump ' + n;
         document.getElementById('eve-pump-name-' + n).textContent = name;
         document.getElementById('prot-tab-' + n).textContent = name;
+        var schedName = document.getElementById('sched-name-' + n);
+        if (schedName) schedName.textContent = name;
+      }
+    }
+
+    // ============================================
+    // ACTIVE PUMPS (Admin feature)
+    // ============================================
+    function getActivePumps() {
+      // Check devices array first (from Supabase), then fallback to telemetry cache
+      var device = devices.find(function(d) { return d.device_id === currentDeviceId; });
+      var val = (device && device.active_pumps) || (deviceLastData[currentDeviceId] && deviceLastData[currentDeviceId]._active_pumps) || 3;
+      return val;
+    }
+
+    function applyActivePumps(updateDropdown) {
+      var count = getActivePumps();
+      // Only update admin dropdown on explicit calls (not from telemetry)
+      if (updateDropdown) {
+        var sel = document.getElementById('active-pumps-select');
+        if (sel) sel.value = count;
+      }
+      // Hide/show pump cards
+      for (var n = 1; n <= 3; n++) {
+        var show = n <= count;
+        var card = document.getElementById('eve-card-' + n);
+        if (card) card.style.display = show ? '' : 'none';
+        // Schedule table rows
+        var row = document.getElementById('sched-row-' + n);
+        if (row) row.style.display = show ? '' : 'none';
+        // Protection tabs
+        var ptab = document.getElementById('prot-tab-' + n);
+        if (ptab) ptab.style.display = show ? '' : 'none';
+      }
+    }
+
+    async function saveActivePumps() {
+      var count = parseInt(document.getElementById('active-pumps-select').value);
+      var statusEl = document.getElementById('active-pumps-status');
+      try {
+        var query = supabaseClient
+          .from('devices')
+          .update({ active_pumps: count })
+          .eq('device_id', currentDeviceId);
+        if (!isAdmin) {
+          query = query.eq('user_id', currentUser.id);
+        }
+        query = query.select();
+        var result = await query;
+        if (result.error) throw result.error;
+        if (!result.data || result.data.length === 0) {
+          statusEl.textContent = 'No rows updated — check device ownership and RLS policies';
+          statusEl.style.color = 'var(--danger)';
+          return;
+        }
+        // Update local cache
+        var device = devices.find(function(d) { return d.device_id === currentDeviceId; });
+        if (device) device.active_pumps = count;
+        // Also persist in telemetry cache so it survives loadDevices() refresh
+        if (!deviceLastData[currentDeviceId]) deviceLastData[currentDeviceId] = {};
+        deviceLastData[currentDeviceId]._active_pumps = count;
+        applyActivePumps(true);
+        statusEl.textContent = 'Saved — showing ' + count + ' pump' + (count > 1 ? 's' : '');
+        statusEl.style.color = 'var(--success)';
+        setTimeout(function() { statusEl.textContent = ''; }, 3000);
+      } catch (error) {
+        statusEl.textContent = 'Error: ' + error.message;
+        statusEl.style.color = 'var(--danger)';
       }
     }
 
@@ -6496,7 +6666,7 @@
         // Fetch registered devices from devices table
         const { data: registeredDevices, error: devicesError } = await supabaseClient
           .from('devices')
-          .select('device_id, user_id, name');
+          .select('device_id, user_id, name, active_pumps, pump_names, hardware_types(type_code)');
 
         if (devicesError) throw devicesError;
 
