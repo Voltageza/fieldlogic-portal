@@ -4979,9 +4979,19 @@
       }
     }
 
-    function editDeviceName() {
-      const device = devices.find(d => d.device_id === currentDeviceId);
-      document.getElementById('rename-device-name').value = device.name || '';
+    async function editDeviceName() {
+      let device = devices.find(d => d.device_id === currentDeviceId);
+      let currentName = (device && device.name) || '';
+      if (!currentName) {
+        // Fetch from Supabase if not in local array
+        const { data } = await supabaseClient
+          .from('devices')
+          .select('name')
+          .eq('device_id', currentDeviceId)
+          .single();
+        if (data) currentName = data.name || '';
+      }
+      document.getElementById('rename-device-name').value = currentName;
       showModal('rename-device-modal');
     }
 
@@ -4993,8 +5003,7 @@
         const { error } = await supabaseClient
           .from('devices')
           .update({ name: newName })
-          .eq('device_id', currentDeviceId)
-          .eq('user_id', currentUser.id);
+          .eq('device_id', currentDeviceId);
 
         if (error) throw error;
 
