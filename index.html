@@ -5191,12 +5191,6 @@
           const deviceId = parts[1];
           const msgType = parts[2]; // 'telemetry' or 'status'
 
-          // DEBUG: log all incoming messages
-          if (deviceId === currentDeviceId) {
-            var preview = message.toString().substring(0, 120);
-            console.log('[MQTT-IN]', topic, '|', preview);
-          }
-
           // Handle LWT status messages (plain text: "online" or "offline")
           if (msgType === 'status') {
             const status = message.toString().trim();
