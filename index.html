@@ -5023,10 +5023,23 @@
     async function handleRenamePump(e) {
       e.preventDefault();
       const newName = document.getElementById('rename-pump-name').value.trim();
-      const device = devices.find(d => d.device_id === currentDeviceId);
-      if (!device) return;
 
-      const pumpNames = Object.assign({}, device.pump_names || {});
+      // Get device from local cache, or fetch from Supabase if not in array
+      let device = devices.find(d => d.device_id === currentDeviceId);
+      let currentPumpNames = {};
+      if (device) {
+        currentPumpNames = device.pump_names || {};
+      } else {
+        // Device not in local array (admin viewing another user's device)
+        const { data } = await supabaseClient
+          .from('devices')
+          .select('pump_names')
+          .eq('device_id', currentDeviceId)
+          .single();
+        if (data) currentPumpNames = data.pump_names || {};
+      }
+
+      const pumpNames = Object.assign({}, currentPumpNames);
       if (newName) {
         pumpNames[renamePumpNumber] = newName;
       } else {
@@ -5034,19 +5047,20 @@
       }
 
       try {
+        // Use device_id only (RLS handles permissions) — user_id filter
+        // blocks admin from updating devices owned by other users
         const { error } = await supabaseClient
           .from('devices')
           .update({ pump_names: pumpNames })
-          .eq('device_id', currentDeviceId)
-          .eq('user_id', currentUser.id);
+          .eq('device_id', currentDeviceId);
 
         if (error) throw error;
 
-        device.pump_names = pumpNames;
+        if (device) device.pump_names = pumpNames;
         applyPumpNames(pumpNames);
         hideModal('rename-pump-modal');
       } catch (error) {
-        alert('Error: ' + error.message);
+        alert('Error saving pump name: ' + error.message);
       }
     }
 
