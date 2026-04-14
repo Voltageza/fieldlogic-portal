@@ -4333,9 +4333,11 @@
         const topic = 'fieldlink/' + currentDeviceId + '/command';
         const cmd = JSON.stringify({command: 'GET_SETTINGS'});
         mqttClient.publish(topic, cmd);
-        console.log('Sent GET_SETTINGS:', topic, cmd);
+        console.log('Sent GET_SETTINGS to', topic, '| MQTT connected:', mqttClient.connected);
+        // Also ensure we're subscribed to the response topic
+        mqttClient.subscribe('fieldlink/' + currentDeviceId + '/telemetry');
       } else {
-        console.log('Cannot request settings - MQTT not connected or no device selected');
+        console.log('Cannot request settings - MQTT connected:', mqttClient && mqttClient.connected, 'deviceId:', currentDeviceId);
       }
     }
 
@@ -4925,7 +4927,9 @@
       }
       // Device time display (from telemetry "time" or GET_SETTINGS "current_time")
       if (data.time || data.current_time) {
-        document.getElementById('device-time').textContent = 'Device time: ' + (data.time || data.current_time);
+        var timeVal = data.time || data.current_time;
+        document.getElementById('device-time').textContent = 'Device time: ' + timeVal;
+        document.getElementById('device-time-eve').textContent = 'Device time: ' + timeVal;
       }
       // Ruraflex settings
       if (data.ruraflex_enabled !== undefined) {
@@ -5170,6 +5174,13 @@
           mqttClient.subscribe('fieldlink/' + device.device_id + '/telemetry');
           mqttClient.subscribe('fieldlink/' + device.device_id + '/status');
         });
+        // Re-subscribe to currently viewed device (important for admin whose
+        // devices array may be empty — subscription set by viewDevice() is
+        // lost on reconnect)
+        if (currentDeviceId) {
+          mqttClient.subscribe('fieldlink/' + currentDeviceId + '/telemetry');
+          mqttClient.subscribe('fieldlink/' + currentDeviceId + '/status');
+        }
         // Also subscribe to fleet devices if admin has loaded fleet
         subscribeFleetDevices();
       });
@@ -5179,6 +5190,12 @@
           const parts = topic.split('/');
           const deviceId = parts[1];
           const msgType = parts[2]; // 'telemetry' or 'status'
+
+          // DEBUG: log all incoming messages
+          if (deviceId === currentDeviceId) {
+            var preview = message.toString().substring(0, 120);
+            console.log('[MQTT-IN]', topic, '|', preview);
+          }
 
           // Handle LWT status messages (plain text: "online" or "offline")
           if (msgType === 'status') {
@@ -5209,9 +5226,11 @@
 
           // Handle settings response separately
           if (data.type === 'settings') {
-            console.log('Received settings from device:', deviceId);
+            console.log('Received settings from device:', deviceId, '| current_time:', data.current_time, '| keys:', Object.keys(data).join(','));
             if (currentDeviceId === deviceId) {
               updateDeviceSettings(data);
+            } else {
+              console.log('Ignoring settings - currentDeviceId:', currentDeviceId, '!== received:', deviceId);
             }
             return;
           }
@@ -5232,20 +5251,24 @@
           // Sync firmware version and status to database
           syncDeviceToDatabase(deviceId, data);
 
-          // FAULT DETECTION: Trigger notification if state changed to FAULT
+          // FAULT DETECTION: Only notify for protection faults (OVERCURRENT/DRY_RUN).
+          // SENSOR_FAULT is a system status (no meter connected) — not actionable.
           if (data.hardware_type === 'EVE_ESP32S3') {
-            // Eve: check each pump for fault
+            // Eve: check each pump for protection fault
             for (var pn = 1; pn <= 3; pn++) {
               var prevPumpState = previousData['s' + pn];
               var currPumpState = data['s' + pn];
-              if (currPumpState === 'FAULT' && prevPumpState !== 'FAULT') {
-                console.log('FAULT detected on device:', deviceId, 'pump:', pn);
+              var faultType = data['f' + pn];
+              if (currPumpState === 'FAULT' && prevPumpState !== 'FAULT' &&
+                  (faultType === 'OVERCURRENT' || faultType === 'DRY_RUN')) {
+                console.log('Protection fault on device:', deviceId, 'pump:', pn, 'type:', faultType);
                 triggerFaultNotification(deviceId);
                 break;
               }
             }
-          } else if (currentState === 'FAULT' && previousState !== 'FAULT') {
-            console.log('FAULT detected on device:', deviceId);
+          } else if (currentState === 'FAULT' && previousState !== 'FAULT' &&
+                     data.fault_type && data.fault_type !== 'SENSOR_FAULT') {
+            console.log('Protection fault on device:', deviceId, 'type:', data.fault_type);
             triggerFaultNotification(deviceId);
           }
 
